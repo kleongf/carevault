@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite';
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createHash, randomBytes } from 'node:crypto';
 import { integrations, memories, sources } from './seed.ts';
@@ -30,6 +30,24 @@ export class Store {
       for (const s of sources) this.put('source', s.id, s);
       for (const [id, token] of Object.entries(this.credentials.integrationTokens)) this.put('credential', id, { hash: digest(token) });
       this.put('meta', 'seeded', { version: 1 });
+    });
+    // Add newly shipped demo registrations without resetting existing grants or patient records.
+    let credentialsChanged = false;
+    for (const integration of integrations()) {
+      if (!this.credentials.integrationTokens[integration.id]) {
+        this.credentials.integrationTokens[integration.id] = randomBytes(32).toString('base64url');
+        credentialsChanged = true;
+      }
+    }
+    if (credentialsChanged) {
+      writeFileSync(`${credentialsPath}.tmp`, JSON.stringify(this.credentials, null, 2), { mode: 0o600 });
+      renameSync(`${credentialsPath}.tmp`, credentialsPath);
+    }
+    this.transaction(() => {
+      for (const integration of integrations()) {
+        if (!this.get('integration', integration.id)) this.put('integration', integration.id, integration);
+        if (!this.get('credential', integration.id)) this.put('credential', integration.id, { hash: digest(this.credentials.integrationTokens[integration.id]) });
+      }
     });
   }
   get<T>(kind: string, id: string): T | undefined {

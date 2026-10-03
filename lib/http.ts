@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { Store, digest, getStore } from './store.ts';
 import { Vault } from './service.ts';
 import { ApiError } from './policy.ts';
+import { chat, chatStatus, setChatKey } from './chat.ts';
 
 const cookieName = 'carevault_owner';
 const noStore = { 'Cache-Control': 'no-store, private', 'X-Content-Type-Options': 'nosniff' };
@@ -75,7 +76,10 @@ export async function handleRequest(request: Request, injectedStore?: Store): Pr
       requireOwner(request, store); actor = 'You';
       if (method !== 'GET') sameOrigin(request);
       if (pathname === '/api/owner/dashboard' && method === 'GET') return json(vault.dashboard());
+      if (pathname === '/api/owner/chat/status' && method === 'GET') return json(chatStatus(store));
       const input = method === 'GET' ? {} : await body(request);
+      if (pathname === '/api/owner/chat/key' && method === 'POST') return json(setChatKey(store, input.key));
+      if (pathname === '/api/owner/chat' && method === 'POST') { actor = 'Health companion'; return json(await chat(vault, input)); }
       const connection = pathname.match(/^\/api\/owner\/connections\/([a-z-]+)(\/revoke)?$/);
       if (connection && !connection[2] && method === 'PUT') return json(vault.saveGrant(connection[1], input));
       if (connection?.[2] && method === 'POST') { vault.revoke(connection[1]); return json({ ok: true }); }
@@ -103,7 +107,7 @@ export async function handleRequest(request: Request, injectedStore?: Store): Pr
     }
     throw new ApiError(404, 'not_found');
   } catch (error) {
-    const safe = error instanceof ApiError ? error : new ApiError(500, 'request_failed', 'The request could not be completed. No data was released.');
+    const safe = error instanceof ApiError ? error : new ApiError(500, 'request_failed', 'The request could not be completed.');
     if (vault && actor && safe.status >= 400 && safe.status < 500) {
       try { vault.activity(actor, 'request', 'denied', safe.code); } catch { /* No sensitive fallback logging. */ }
     }

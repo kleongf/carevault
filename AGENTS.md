@@ -5,6 +5,7 @@ Read README.md and docs/PLAN.md before implementation. The user has prioritized 
 ## Scope
 
 - Implement the patient-facing integration hub and shared memory backend only.
+- The user additionally authorized a Health companion chatbot using OpenRouter free models, a shadcn UI refresh, and a developer integrations dashboard. Preserve these as part of the demo; the three specialized medical applications remain separate.
 - Do not implement the imaging, trial, or formulation applications. Keep their interface in docs/INTEGRATION-CONTRACT.md for teammates.
 - Use synthetic data. Label prepared extraction, redacted examples, and medical findings accurately.
 - Do not add autonomous clinical decision-making or overwrite established facts through integration APIs.

@@ -2,7 +2,7 @@
 
 A patient-controlled memory layer and integration hub for healthcare AI.
 
-**Status: working local hackathon prototype.** The hub, permission gateway, selected redaction, activity history, and persistent report writes are implemented. All patient data is synthetic. Medical integrations and arbitrary document processing are not implemented.
+**Status: working local hackathon prototype.** The patient hub, developer dashboard, permission gateway, selected redaction, persistent reports, and OpenRouter chatbot are implemented. All patient data is synthetic. Imaging, trial, and formulation applications and arbitrary document processing are not implemented.
 
 ## Run locally
 
@@ -22,13 +22,26 @@ The server binds to loopback. Do not expose this prototype publicly or load real
 
 ## Try the demonstration
 
-1. Connect **Scan Review**, keeping identity Redact and mental health Private. Preview and save the grant.
-2. Select it in **Request inspector** and run a read. Inspect the actual JSON: identifiers are replaced and private-topic text is absent.
+The shadcn UI separates **Chat**, **My memory**, **Connected apps**, and **Developers**. Developers contains the registered applications, API examples, request inspector, and access history. It is an authenticated owner sandbox, not a public developer account system; tokens remain in the local credentials file.
+
+1. In Connected apps, connect **Scan Review**, keeping identity Redact and mental health Private. Preview and save the grant.
+2. Select it in the Developers **Request inspector** and run a read. Inspect the actual JSON: identifiers are replaced and private-topic text is absent.
 3. Save a fixture report, then find it in **My memory**. Its content is prepared; permission checks, authorship, and persistence are live.
 4. To demonstrate inherited protection, first share identity and mental health, read again, and save a report. Then make **Private health note** Private in My memory. Later requests omit its summary and dependent reports, even when Notes/Reports remain Share.
 5. Revoke access and repeat the read. The backend denies it; earlier activity remains visible.
 
 With conservative receipt inheritance, a prepared report can already be withheld when its read included redacted fields or a partially protected note. External report writes always remain private pending review; there is no review/approval workflow in this version.
+
+## Chat with the demo patient
+
+1. Open **Chat**, connect Health companion, and save its permissions. The companion is a separate integration with read permission only by default.
+2. Paste an [OpenRouter API key](https://openrouter.ai/keys) into the password field and select **Use key for this session**. This sends it to your local server, which retains it in memory until restart; it is not returned or stored in the browser. Alternatively, set `OPENROUTER_API_KEY` in ignored `.env.local` before starting the server.
+3. Ask “What care preferences are in my memory?” Expand the response's context disclosure to inspect the exact memory sent.
+4. Change a permission and ask again. The backend projects current permissions on every turn and resets prior model conversation context when the policy version changes. Revoking access denies further requests.
+
+The fixed model is [`openrouter/free`](https://openrouter.ai/openrouter/free), which routes to an available free model. There is no paid fallback. Model quality, latency, availability, and [rate limits](https://openrouter.ai/docs/api_reference/limits) vary. Missing keys and provider errors are shown as errors, never substituted with a mock answer.
+
+Typed questions and authorized memory are sent to OpenRouter and its selected provider. Use synthetic data only; typed messages are not automatically redacted. Conversation history is held on the local server (up to three exchanges per conversation, 20 conversations), lost on restart, and not written into clinical records. Questions use general education and appointment-preparation instructions; outputs are unverified and are not a clinical decision system. Earlier disclosures cannot be recalled from the provider.
 
 ## Verify
 
@@ -38,7 +51,7 @@ npm run typecheck
 npm run build
 ```
 
-The 19 behavioral tests exercise real SQLite and HTTP handlers, including restart persistence, scopes, authorization, redaction, provenance, revocation, and protected downloads. See [verification notes](docs/VERIFICATION.md) for browser and review evidence.
+Behavioral tests exercise real SQLite and HTTP handlers, including restart persistence, scopes, authorization, redaction, provenance, revocation, protected downloads, and chatbot provider boundaries. Provider tests use an explicit fake transport and do not consume API quota. See [verification notes](docs/VERIFICATION.md) for browser and review evidence.
 
 ## What we are building
 

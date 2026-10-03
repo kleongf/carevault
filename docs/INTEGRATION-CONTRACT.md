@@ -12,6 +12,10 @@ Run the README setup steps. Use `Authorization: Bearer <your integration token>`
 
 Integration slots: `scan-review`, `trial-explorer`, `formulation-review`. These are registered demo identities with different credentials, not trusted roles merely because they have these names.
 
+`care-assistant` is the additional live Health companion demo. It uses the same saved grants and context projection. Its default grant is disconnected with only `facts:read` selected. Existing databases receive this registration without resetting other grants or patient records.
+
+The **Developers** dashboard exposes registration status, documented request examples, a live owner-only API inspector, and access history. It does not expose integration secrets or implement public app registration.
+
 ## Authentication and connection
 
 Owner endpoints require an owner session. Integration endpoints require an integration credential. The server resolves the actor from the credential; it does not trust an integration ID supplied in the request body.
@@ -129,6 +133,9 @@ Implemented owner routes (session cookie required; mutations also require same O
 - `PUT /api/owner/memory/:id` with `{ "restriction": "private" }` (also `share` or `redact`).
 - `POST /api/owner/preview` with `{ "integrationId": "scan-review" }` and an optional `grant` object; hypothetical preview, including disconnected grants.
 - `POST /api/owner/inspect` with `{ "integrationId": "scan-review", "operation": "read" }` or operation `write` plus `contextRequestId` from a successful read. The server constructs the prepared report from authorized context. This trusted fixture path is not available through the external report API.
+- `GET /api/owner/chat/status`: server key presence, model, and companion integration ID; no secret values.
+- `POST /api/owner/chat/key` with `{ "key": "<OpenRouter key>" }`: retains the key only in this local server's memory until restart. Response is status only.
+- `POST /api/owner/chat` with `{ "message": "<up to 2000 characters>", "conversationId": "<optional previous response ID>" }`: returns `reply`, actual provider `model`, authorized `context`, `conversationId`, and `historyReset`. Server history is bounded and reset when the grant policy version changes; client-supplied context, model, and history do not control the request. Chat uses the companion's read scope and does not append clinical reports.
 
 Report titles are limited to 120 characters, bodies to 12,000, and source lists to 100 IDs. This demo vault allows at most 100 reports. Responses include `pendingReview` as well as the fields shown above.
 

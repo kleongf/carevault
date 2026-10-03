@@ -4,7 +4,7 @@ Verified on 2026-10-03, macOS arm64, Node 26.8.1. Node 24 is the recommended tea
 
 ## Completed checks
 
-- `npm test`: 19 passed, none failed or skipped. Tests use temporary on-disk SQLite stores and the actual HTTP handler.
+- `npm test`: 29 passed, none failed or skipped. Tests use temporary on-disk SQLite stores and the actual HTTP handler.
 - `npm run typecheck`: passed.
 - `npm run build`: passed using Next.js 16.3.8 and webpack; no external fonts or model calls.
 - `git diff --check`: passed.
@@ -18,6 +18,16 @@ The browser run exposed Next.js URL hostname normalization interfering with same
 
 Owner/integration credential separation; session integrity and CSRF checks; structured and partial-note redaction; private-topic omission; individual restrictions; inheritance through source references and summaries; malformed/cyclic/cross-patient dependencies; patient isolation; independent read/file/write scopes; server-assigned report authorship; untrusted reports kept private; receipt ownership and source validation; prepared report inheritance; preview parity; revocation; historical activity retention; SQLite restart persistence; current-policy plain-text downloads; refusal to serve unsupported originals; bounded input; and prompts unable to change deterministic policy.
 
+## Chat verification
+
+Ten additional tests use injected provider responses to verify owner/CSRF protection, memory-only keys, additive registration migration, projected context, fixed free routing, bounded conversation history, reset after changed permissions, rejection of stale replies after mid-request revocation, explicit sanitized provider failures, and concurrent-request limits. No API key or real provider is used by the test suite.
+
+The shadcn refresh was rebuilt successfully. The browser retained the demo owner session after restart, displayed the in-app key form, and previewed 14 permitted companion records with redacted identifiers and no private-topic text. The user connected Health companion in the UI and saved an OpenRouter key in ignored .env.local through TextEdit. A live developer-inspector read returned the expected 14 records. A real chat call then returned a concise answer about the synthetic care preferences, attributed to nvidia/nemotron-3-ultra-550b-a55b:free.
+
+The initial live response exposed a provider reasoning draft; the request now disables/excludes reasoning, asks for a final answer, and rejects truncated completions. One subsequent request encountered free-model unavailability before a successful retry. Free routing is variable; this demonstrates an operational integration, not clinical validation. Automated provider-boundary tests continue to use fake transport.
+
+Config files reverted during the session while iCloud reported sync errors. With user approval, newer duplicate versions were restored to canonical filenames and both versions preserved in the adjacent carevault-config-backup-20261003-152643 folder. Type checks and the 29 tests were rerun after reconciliation.
+
 ## Storage and deployment
 
 Fresh setup seeds the local database and creates credentials. There is no existing production schema migration. Keep `data/` out of Git and retain its credentials and database together when backing up. Stop the server before copying the entire directory. To start a fresh synthetic demo, stop the server and move `data/` to a private backup location, then rerun setup. Do not erase it if you want to retain grants or reports.
@@ -26,8 +36,8 @@ This handoff runs locally. Public hosting, hosted storage, multi-instance consis
 
 ## Deliberate limits
 
-- Three registered application slots and a shared API, not functioning imaging, trial, or formulation integrations.
-- Prepared sensitivity labels, source relationships, text spans, and medical examples. No arbitrary-file ingestion, OCR, DICOM processing, general PII detection, clinical inference, or autonomous memory learning.
+- Three medical application slots plus a live Health companion chatbot registration and a shared API. The imaging, trial, and formulation applications remain unimplemented.
+- Prepared sensitivity labels, source relationships, text spans, and medical examples. No arbitrary-file ingestion, OCR, DICOM processing, general PII detection, validated clinical inference, or autonomous memory learning. The chatbot generates unverified educational responses using authorized context.
 - Conservative report inheritance uses every item in its read receipt. A report can be withheld even when its visible text seems harmless. External reports always remain private pending a review workflow that is not yet implemented.
 - The activity UI shows reference IDs and policy versions. Exact historical payload replay is not implemented.
 - The vault prevents future releases after revocation; it cannot delete copies already held by an integration.

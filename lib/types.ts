@@ -14,7 +14,7 @@ export interface Grant {
 }
 export interface Integration {
   id: string; name: string; publisher: string; description: string;
-  track: string; icon: 'scan' | 'flask' | 'pill'; grant: Grant;
+  track: string; icon: 'scan' | 'flask' | 'pill' | 'chat'; grant: Grant;
 }
 export interface Segment { text: string; category: Category; parentIds?: string[]; }
 export interface MemoryItem {
