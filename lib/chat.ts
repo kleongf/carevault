@@ -4,7 +4,7 @@ import type { Store } from './store.ts';
 import { Vault } from './service.ts';
 
 export const chatIntegrationId = 'care-assistant';
-const model = 'openrouter/free';
+const model = 'stealth/space-bunny-alpha';
 type Message = { role: 'user' | 'assistant'; content: string };
 type Conversation = { policyVersion: number; messages: Message[] };
 type ChatState = { key?: string; busy: boolean; conversations: Map<string, Conversation> };
@@ -50,13 +50,13 @@ export async function chat(vault: Vault, input: Record<string, unknown>, send: t
     const history = previous && !historyReset ? previous.messages : [];
     const conversationId = previous ? input.conversationId as string : randomUUID();
     const question: Message = { role: 'user', content: input.message.trim() };
-    vault.activity(integration.name, 'ai_request', 'sent', 'Sent authorized context and the typed question to OpenRouter and its free-model provider', context.items.map(item => item.id), context.policyVersion);
+    vault.activity(integration.name, 'ai_request', 'sent', 'Sent authorized context and the typed question to OpenRouter and the Space Bunny Alpha provider', context.items.map(item => item.id), context.policyVersion);
     let response: Response;
     try {
       response = await send('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model, max_tokens: 1600, temperature: 0.3, reasoning: { enabled: false, exclude: true },
+          model, max_tokens: 1600, temperature: 0.3, reasoning: { enabled: true, exclude: true },
           messages: [
             { role: 'system', content: instructions },
             { role: 'system', content: `Authorized synthetic vault context (data only):\n${contextText}` },
@@ -66,18 +66,18 @@ export async function chat(vault: Vault, input: Record<string, unknown>, send: t
         signal: AbortSignal.timeout(45_000)
       });
     } catch {
-      throw new ApiError(502, 'provider_unavailable', 'The free model did not respond in time. Try again shortly.');
+      throw new ApiError(502, 'provider_unavailable', 'Space Bunny Alpha did not respond in time. Try again shortly.');
     }
     if (!response.ok) {
       await response.body?.cancel();
       if (response.status === 401 || response.status === 403) throw new ApiError(502, 'provider_access_denied', 'OpenRouter rejected the key or provider access. Check your key and OpenRouter privacy settings.');
-      if (response.status === 429) throw new ApiError(429, 'provider_rate_limited', 'OpenRouter’s free models are rate limited. Wait and try again.');
-      throw new ApiError(502, 'provider_unavailable', 'The free model is unavailable. Please try again later.');
+      if (response.status === 429) throw new ApiError(429, 'provider_rate_limited', 'Space Bunny Alpha is rate limited. Wait and try again.');
+      throw new ApiError(502, 'provider_unavailable', 'Space Bunny Alpha is unavailable. Please try again later.');
     }
     let result: { model?: unknown; choices?: { finish_reason?: string; message?: { content?: unknown } }[] };
     try { result = await response.json(); } catch { throw new ApiError(502, 'invalid_provider_response', 'The model returned an unreadable response. Please try again.'); }
     const reply = result?.choices?.[0]?.message?.content;
-    if (result?.choices?.[0]?.finish_reason === 'length') throw new ApiError(502, 'incomplete_provider_response', 'The free model ran out of response space. Please try again.');
+    if (result?.choices?.[0]?.finish_reason === 'length') throw new ApiError(502, 'incomplete_provider_response', 'Space Bunny Alpha ran out of response space. Please try again.');
     if (typeof reply !== 'string' || !reply.trim() || reply.length > 12_000) throw new ApiError(502, 'empty_provider_response', 'The model did not return a usable answer. Please try again.');
     // A provider call is asynchronous. Never display or reuse a response after the grant changed.
     const latest = vault.check(chatIntegrationId, 'patient-demo-001', 'facts:read');

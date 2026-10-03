@@ -20,11 +20,13 @@ Owner/integration credential separation; session integrity and CSRF checks; stru
 
 ## Chat verification
 
-Ten additional tests use injected provider responses to verify owner/CSRF protection, memory-only keys, additive registration migration, projected context, fixed free routing, bounded conversation history, reset after changed permissions, rejection of stale replies after mid-request revocation, explicit sanitized provider failures, and concurrent-request limits. No API key or real provider is used by the test suite.
+Ten additional tests use injected provider responses to verify owner/CSRF protection, memory-only keys, additive registration migration, projected context, the fixed requested model, bounded conversation history, reset after changed permissions, rejection of stale replies after mid-request revocation, explicit sanitized provider failures, and concurrent-request limits. No API key or real provider is used by the test suite.
 
-The shadcn refresh was rebuilt successfully. The browser retained the demo owner session after restart, displayed the in-app key form, and previewed 14 permitted companion records with redacted identifiers and no private-topic text. The user connected Health companion in the UI and saved an OpenRouter key in ignored .env.local through TextEdit. A live developer-inspector read returned the expected 14 records. A real chat call then returned a concise answer about the synthetic care preferences, attributed to nvidia/nemotron-3-ultra-550b-a55b:free.
+The shadcn refresh was rebuilt successfully. The browser retained the demo owner session after restart, displayed the in-app key form, and previewed 14 permitted companion records with redacted identifiers and no private-topic text. The user connected Health companion in the UI and saved an OpenRouter key in ignored .env.local through TextEdit. A live developer-inspector read returned the expected 14 records. Before the requested model switch, a real chat call returned a concise answer about the synthetic care preferences, attributed to nvidia/nemotron-3-ultra-550b-a55b:free.
 
-The initial live response exposed a provider reasoning draft; the request now disables/excludes reasoning, asks for a final answer, and rejects truncated completions. One subsequent request encountered free-model unavailability before a successful retry. Free routing is variable; this demonstrates an operational integration, not clinical validation. Automated provider-boundary tests continue to use fake transport.
+The initial live response exposed a provider reasoning draft; the initial router fix disabled/excluded reasoning, asked for a final answer, and rejected truncated completions. One subsequent request encountered free-model unavailability before a successful retry. The original free router was variable; this demonstrates an operational integration, not clinical validation. Automated provider-boundary tests continue to use fake transport.
+
+The requested switch to `stealth/space-bunny-alpha` was verified with a live browser reply about the four synthetic care preferences, attributed to that exact model, using 14 permitted memory items. The provider requires reasoning to be enabled; the request enables it but excludes reasoning from the response. The 29 tests, type check, and production build passed after this adjustment. The model listing announces retirement on October 5, 2026; no automatic fallback is configured.
 
 Config files reverted during the session while iCloud reported sync errors. With user approval, newer duplicate versions were restored to canonical filenames and both versions preserved in the adjacent carevault-config-backup-20261003-152643 folder. Type checks and the 29 tests were rerun after reconciliation.
 
@@ -32,7 +34,7 @@ Config files reverted during the session while iCloud reported sync errors. With
 
 Fresh setup seeds the local database and creates credentials. There is no existing production schema migration. Keep `data/` out of Git and retain its credentials and database together when backing up. Stop the server before copying the entire directory. To start a fresh synthetic demo, stop the server and move `data/` to a private backup location, then rerun setup. Do not erase it if you want to retain grants or reports.
 
-This handoff runs locally. Public hosting, hosted storage, multi-instance consistency, account recovery, production token rotation, encrypted backups, and operations are not implemented. Do not deploy the SQLite store on an ephemeral Vercel filesystem. The repository has no configured Git remote.
+This handoff runs locally. Public hosting, hosted storage, multi-instance consistency, account recovery, production token rotation, encrypted backups, and operations are not implemented. Do not deploy the SQLite store on an ephemeral Vercel filesystem. The requested source remote is https://github.com/kleongf/carevault.git; source publication does not deploy the application.
 
 ## Deliberate limits
 

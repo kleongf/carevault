@@ -31,7 +31,7 @@ The team can own other integrations elsewhere. Do not create those application i
 ## Minimal fixtures
 
 - One primary synthetic patient and a second patient for access-isolation tests.
-- Three integration registrations, each with a distinct secret and grant.
+- Four integration registrations (including Health companion), each with a distinct secret and grant.
 - 15–25 memory items spanning demographics, symptoms, medications, allergies, preferences, and a protected topic.
 - One original note with prepared identifier spans; one protected-topic fact; one derived summary with an explicit dependency.
 - Source cards for structured data, a PDF, a scanned page, and an image. Clearly label prepared extraction.
@@ -74,4 +74,4 @@ Only pursue deployment if the main demo passes and a persistent hosted database 
 - The Next.js application and SQLite gateway are implemented. Run the README setup instructions, then connect teammate applications using INTEGRATION-CONTRACT.md.
 - Disk space was audited and reproducible caches/dependencies were removed with user authorization. Available space remains tight; avoid large model downloads or Docker builds.
 - Use the existing API key through a local environment variable only if a model call is needed; never request that it be pasted into chat or committed.
-- Local Git repository is created; remote hosting, publishing, and GitHub visibility are not configured.
+- GitHub source repository: https://github.com/kleongf/carevault. Public app deployment is not configured.

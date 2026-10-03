@@ -83,7 +83,7 @@ test('chat status, key entry, and chat require owner authentication and mutation
     assert.equal((await response.json()).error, 'origin_not_allowed');
   }
   assert.deepEqual(await (await f.request('/api/owner/chat/status', { owner: true })).json(), {
-    configured: false, model: 'openrouter/free', integrationId: chatIntegrationId
+    configured: false, model: 'stealth/space-bunny-alpha', integrationId: chatIntegrationId
   });
 });
 
@@ -146,7 +146,7 @@ test('disconnected, scope-less, and key-less chat fails before provider contact 
   assert.equal(p.calls.length, 0);
 });
 
-test('provider receives only projected context and hardcoded free routing; typed text is explicitly separate', async t => {
+test('provider receives only projected context and the fixed requested model; typed text is explicitly separate', async t => {
   const f = await setup(t); f.connect(); setChatKey(f.store, fakeKey);
   const p = provider('An actual fake-provider answer, never a built-in mock.');
   const before = f.vault.memories();
@@ -159,9 +159,9 @@ test('provider receives only projected context and hardcoded free routing; typed
   const call = p.calls[0];
   assert.equal(call.url, 'https://openrouter.ai/api/v1/chat/completions');
   assert.equal(call.headers.get('authorization'), `Bearer ${fakeKey}`);
-  assert.equal(call.body.model, 'openrouter/free');
+  assert.equal(call.body.model, 'stealth/space-bunny-alpha');
   assert.equal(call.body.max_tokens, 1600);
-  assert.deepEqual(call.body.reasoning, { enabled: false, exclude: true });
+  assert.deepEqual(call.body.reasoning, { enabled: true, exclude: true });
   const context = call.body.messages[1].content.split('\n').slice(1).join('\n');
   assert.deepEqual(JSON.parse(context), expected);
   const wireBody = JSON.stringify(call.body);
