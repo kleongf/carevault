@@ -1,6 +1,8 @@
 # Integration handoff contract
 
-**Proposed interface, not an implemented API.** This document lets teammates build independently. Implementing the imaging, trial, and formulation applications is outside this repository's current scope.
+**Implemented local API**, at `http://127.0.0.1:3040`. Implementing the imaging, trial, and formulation applications is outside this repository's current scope.
+
+Run the README setup steps. Use `Authorization: Bearer <your integration token>` on `/api/v1/*` and `Content-Type: application/json` for POST bodies. Tokens are generated in the private, ignored `data/credentials.json`; keep them on your integration's server. Connect your integration in the owner UI before calling the API. This is a server-to-server API; cross-origin browser requests are not enabled.
 
 ## Responsibilities
 
@@ -32,7 +34,7 @@ Required scope: `facts:read`.
 }
 ```
 
-`query` is optional, bounded text used only to select among authorized information. It cannot change permissions. The first implementation can use category filtering instead of semantic search.
+`query` is optional and limited to 1,000 characters. It is accepted but not used for selection in this version. Use `categories` to filter; omitting it returns all authorized items. There is no semantic search. Request JSON is limited to 32 KiB.
 
 Example response:
 
@@ -73,6 +75,8 @@ Required scope: `files:download`, plus applicable source/category/item permissio
 
 Return only a real redacted rendition compatible with the current policy. If no such rendition exists, return `rendition_unavailable`; never fall back to the original. Prepared examples are sufficient for the hackathon, labeled as prepared in the owner UI. Raw files remain behind owner authorization.
 
+Implemented renditions are **plain-text extracts** for `source-intake` and `source-visit`, projected at request time. PDF/scan/image cards have no downloadable binary or processing implementation and return HTTP 409 `rendition_unavailable`. No originals are served.
+
 ## Append a report
 
 `POST /api/v1/reports`
@@ -104,7 +108,7 @@ Example response:
 - Check that the referenced read receipt belongs to this integration and patient.
 - Check source IDs against authorized items in that receipt and the current write policy.
 - Conservatively inherit restrictions from the receipt's disclosed items. Do not let the integration reduce sensitivity by leaving a source out of its request.
-- If the receipt is absent, provenance is missing, or the report introduces unreviewed content, retain it privately pending review; do not grant automatic downstream sharing.
+- All external reports are stored privately pending review, including reports with valid receipts. There is no review/approval workflow yet. A report without a receipt may be saved if it does not claim source item IDs. Missing/foreign receipt references and unauthorized source references are rejected.
 - No caller-supplied `clinician_verified` status. No automatic overwrite of established facts.
 - Persist the write and activity entry consistently. If idempotency is added, scope keys to integration and patient.
 
@@ -116,7 +120,17 @@ Required scope: `facts:read`. Apply current restrictions and dependency inherita
 
 ## Owner controls
 
-Proposed owner routes: list integrations, save a connection grant, revoke a connection, inspect memory, set private/redacted item restrictions, and list activity.
+Implemented owner routes (session cookie required; mutations also require same Origin):
+
+- `POST /api/session` with `{ "code": "<local owner code>" }`; `DELETE /api/session` signs out.
+- `GET /api/owner/dashboard`: integrations, memory, sources, latest 150 activity events.
+- `PUT /api/owner/connections/:id`: complete Grant shape from `lib/types.ts`; server assigns version.
+- `POST /api/owner/connections/:id/revoke` with `{}`.
+- `PUT /api/owner/memory/:id` with `{ "restriction": "private" }` (also `share` or `redact`).
+- `POST /api/owner/preview` with `{ "integrationId": "scan-review" }` and an optional `grant` object; hypothetical preview, including disconnected grants.
+- `POST /api/owner/inspect` with `{ "integrationId": "scan-review", "operation": "read" }` or operation `write` plus `contextRequestId` from a successful read. The server constructs the prepared report from authorized context. This trusted fixture path is not available through the external report API.
+
+Report titles are limited to 120 characters, bodies to 12,000, and source lists to 100 IDs. This demo vault allows at most 100 reports. Responses include `pendingReview` as well as the fields shown above.
 
 The owner-only preview calls the same projection function used by the integration read path. It must not be a client-side imitation of authorization.
 

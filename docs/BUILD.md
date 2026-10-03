@@ -1,6 +1,6 @@
 # 12-hour build board
 
-Status: all application tasks below are unimplemented. The repository and specifications exist.
+Status: the core application is implemented. Backend tests, type checking, and the production build pass. See VERIFICATION.md for the completed checks. The time boxes below remain a suggested team schedule, not a record of hours spent.
 
 ## Success criterion
 
@@ -71,7 +71,7 @@ Only pursue deployment if the main demo passes and a persistent hosted database 
 
 ## Implementation handoff notes
 
-- Existing repository is documentation-only; application scaffolding and dependency installation are next.
-- At repository creation, the local machine reported less than 0.5 GiB free disk space. Check available space before installing a Next.js toolchain. Do not delete unrelated user files to make room.
+- The Next.js application and SQLite gateway are implemented. Run the README setup instructions, then connect teammate applications using INTEGRATION-CONTRACT.md.
+- Disk space was audited and reproducible caches/dependencies were removed with user authorization. Available space remains tight; avoid large model downloads or Docker builds.
 - Use the existing API key through a local environment variable only if a model call is needed; never request that it be pasted into chat or committed.
 - Local Git repository is created; remote hosting, publishing, and GitHub visibility are not configured.

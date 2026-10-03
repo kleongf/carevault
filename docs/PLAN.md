@@ -2,6 +2,8 @@
 
 Decision date: 2026-10-03. Working name: CareVault.
 
+Implementation update: the local hub and gateway are built. README.md, INTEGRATION-CONTRACT.md, and VERIFICATION.md describe the delivered behavior. This plan also retains future product scope. The prototype uses CSS without Tailwind, one SQLite record table with JSON dependency IDs, prepared source cards without uploaded binaries, inline memory details, and a modal permission panel. Activity shows record references and policy versions, not exact historical response replay. No autonomous extraction/review agent is implemented.
+
 ## 1. Accepted decisions
 
 | Topic | Decision |
@@ -56,13 +58,13 @@ Do not silently treat an unsupported uploaded file as safely processed. Show uns
 | Layer | Choice | Reason |
 | --- | --- | --- |
 | Application | Next.js App Router + React + TypeScript | One codebase for UI and API endpoints |
-| Styling | Tailwind CSS with a small set of ordinary components | Fast, consistent UI without a second application framework |
+| Styling | Ordinary CSS and React components; Lucide icons | Small dependency surface and responsive layouts |
 | Persistence | Local SQLite in the Node.js runtime | Persistent grants and reports without a cloud account or service |
-| SQLite access | Use node:sqlite if the team's pinned runtime supports it; one small storage module | The inspected local Node runtime exposes SQLite; verify the chosen shared runtime before scaffolding |
-| Validation | Small explicit request schemas; Zod if already used by the scaffold | Validate integration input and bound payload size |
+| SQLite access | node:sqlite, Node 24 recommended | One storage module; no native database package install |
+| Validation | Explicit TypeScript request checks | Validate integration input and bound payload size |
 | Policy | Pure TypeScript functions | Easy to understand and test; no LLM authorization |
 | AI | Optional direct provider call behind a server-only function | Provider is unspecified; live inference is not on the critical path |
-| Dependencies | Ordinary SQL edges between records | Adequate for the small provenance demonstration |
+| Dependencies | Parent IDs inside persisted records | Adequate for the small provenance demonstration; policy traverses these links |
 
 Choose a supported common Node version at scaffolding time and pin it. The current machine had Node v26.8.1 when the plan was prepared; that is an observation, not a requirement to use that version on every teammate's machine. node:sqlite support and stability depend on Node version.
 
