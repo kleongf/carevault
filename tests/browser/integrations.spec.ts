@@ -118,6 +118,8 @@ for (const app of ['medicine', 'xray'] as const) {
         await expect(page.getByRole('dialog', { name: 'Shared text' })).toBeVisible();
         await expect(page.locator('#context')).toContainText(sharedText);
         expect(state.calls.find(call => call.path === '/api/context')?.body).toEqual({ recordIds: ['fixture-note'] });
+        await page.locator('#close-preview').click();
+        await expect(page.getByRole('dialog', { name: 'Shared text' })).toBeHidden();
       } else {
         await page.getByLabel('Shared version').selectOption('original');
         await expect(page.locator('#preview')).toBeVisible();
@@ -178,7 +180,10 @@ for (const app of ['medicine', 'xray'] as const) {
       state.failure = { path: '/api/analyze', status: 503, error: 'selected_model_not_available_free' };
       await page.locator(app === 'medicine' ? '#generate' : '#analyze').click();
       await expect(page.locator('#status')).toContainText('no longer free');
-      await expect(page.locator(app === 'medicine' ? '#report-actions' : '#result')).toBeHidden();
+      await expect(page.locator('#report')).toBeEmpty();
+      await expect(page.locator('#save')).toBeDisabled();
+      if (app === 'medicine') await expect(page.locator('#report-actions')).toBeHidden();
+      else await expect(page.locator('#report-empty')).toBeVisible();
       expect(state.calls.some(call => call.path === '/api/save')).toBe(false);
       expect(state.blocked).toEqual([]);
     });

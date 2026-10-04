@@ -57,3 +57,9 @@ Credit the **NIH Clinical Center** as the original provider and cite Wang et al.
 - HTTP range rejection was tested with a mocked HTTP 200 response: the fetcher refuses it before reading a body.
 
 These checks establish artifact integrity and layout, not OCR quality, successful redaction, or classifier accuracy. The app's processing and integration tests must verify those separately.
+
+## Pitch upload sample
+
+[`carevault-demo-medication-update.pdf`](../output/pdf/carevault-demo-medication-update.pdf) is a one-page fictional document for the three-minute pitch. It adds reported cetirizine use and drowsiness, without prescribing treatment. Upload it with **Healthcare identifiers** to demonstrate extraction and redaction, then explicitly share its text with Medicine Review. For a revocation demonstration, keep the distinctive drowsiness detail out of other selected sources and generated reports.
+
+The actual processor preserved the selected clinical phrases and removed the five test identifiers from redacted text. The exported PDF was visually inspected, had no searchable text layer, and independent OCR found none of those five identifiers. This is a checked synthetic example, not a general redaction-accuracy claim.
