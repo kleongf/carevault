@@ -133,3 +133,9 @@ Earlier test totals and timing sections above are historical evidence. Current f
 Patient Profile now uses the official shadcn New York Table component, matching the existing component set and MIT notice. Eleven editable rows are grouped into three labeled tables with row headers and associated input labels. Existing save, cancel, conflict, preview, and sharing behavior is unchanged. No dependency, backend, worker, or stored-data change was required.
 
 Production build, `npm run typecheck`, and `git diff --check` passed. The final `npx playwright test` run passed all **36 desktop/mobile cases in 42.0 seconds**, including table row counts, field editing, persistence, retained drafts, validation, preview focus restoration, and concurrent-save handling. Desktop/mobile screenshots were inspected; narrow screens retained both columns without page overflow. Tests select the Care preferences textbox explicitly because the table shares that accessible name. Backend/worker suites were not rerun for this presentation-only change.
+
+## Combined UI pre-publication check — October 4, 2026
+
+Included the other agent's `b8efaf3` integration-card, record grouping, markdown rendering, preview-dialog, and status-toast changes. Fresh checks passed: 60 Node tests, 23 Medicine Review tests, 14 X-ray tests, TypeScript, production build, and all 36 Chromium desktop/mobile cases (44.3 seconds). The build/browser run used a temporary source snapshot with no private vault or provider keys. Browser checks now close the new preview dialog and verify that failed generation leaves an empty report with Save disabled. Worker/model suites were not rerun for this UI publication check. Configured secrets were checked against tracked files and were absent.
+
+The previous GitHub main at `e2e00722c0bc3caa2f0cf61160bf01fbbafa57e1` was preserved on `archive/main-before-carevault-2026-10-04` before any main replacement. The synthetic pitch PDF is now tracked as a binary artifact.
