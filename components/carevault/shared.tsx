@@ -1,7 +1,7 @@
 'use client';
 
 import { Badge } from '../ui/badge';
-import { FlaskConical, MessageCircle, Pill, ScanLine } from 'lucide-react';
+import { ClipboardList, FlaskConical, MessageCircle, Pill, ScanLine } from 'lucide-react';
 import type { ContextResponse, Disclosure, Integration, Scope } from '../../lib/types';
 
 export const scopeLabels: Record<Scope, string> = {
@@ -28,7 +28,7 @@ export function errorMessage(error: unknown) { return error instanceof Error ? e
 export function readable(value: string) { return value.replaceAll('_', ' ').replaceAll('-', ' '); }
 export function time(value: string) { return new Date(value).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
 export function IntegrationIcon({ integration }: { integration: Integration }) {
-  const Icon = integration.id === 'care-assistant' ? MessageCircle : integration.icon === 'scan' ? ScanLine : integration.icon === 'flask' ? FlaskConical : Pill;
+  const Icon = integration.id === 'care-assistant' ? MessageCircle : integration.id === 'visit-prep' ? ClipboardList : integration.icon === 'scan' ? ScanLine : integration.icon === 'flask' ? FlaskConical : Pill;
   return <Icon size={19} strokeWidth={1.7} />;
 }
 export function DisclosureControl({ value, onChange, label, disabled = false, minimum = 'share' }: {

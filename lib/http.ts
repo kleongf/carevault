@@ -72,6 +72,22 @@ export async function handleRequest(request: Request, injectedStore?: Store): Pr
       loginAttempts.delete(attemptsKey);
       return json({ ok: true }, 200, { 'Set-Cookie': cookie(request, sessionToken(store)) });
     }
+    if (pathname.startsWith('/api/visit-prep/')) {
+      requireOwner(request, store);
+      sameOrigin(request);
+      if (method !== 'POST') throw new ApiError(405, 'method_not_allowed');
+      const input = await body(request);
+      const token = store.credentials.integrationTokens['visit-prep'];
+      if (!token) throw new ApiError(500, 'integration_unavailable');
+      const target = pathname === '/api/visit-prep/context' ? '/api/v1/context' : pathname === '/api/visit-prep/reports' ? '/api/v1/reports' : undefined;
+      if (!target) throw new ApiError(404, 'not_found');
+      const upstream = await handleRequest(new Request(new URL(target, request.url), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      }), store);
+      return new Response(upstream.body, { status: upstream.status, headers: upstream.headers });
+    }
     if (pathname.startsWith('/api/owner/')) {
       requireOwner(request, store); actor = 'You';
       if (method !== 'GET') sameOrigin(request);

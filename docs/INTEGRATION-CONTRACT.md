@@ -14,6 +14,8 @@ Integration slots: `scan-review`, `trial-explorer`, `formulation-review`. These 
 
 `care-assistant` is the additional live Health companion demo. It uses the same saved grants and context projection. Its default grant is disconnected with only `facts:read` selected. Existing databases receive this registration without resetting other grants or patient records.
 
+`visit-prep` is a working mock third-party application included to demonstrate the contract. Its Visit Prep AI page uses a server-side integration token and the same `/api/v1/context` and `/api/v1/reports` routes; its default grant is disconnected until the owner connects it.
+
 The **Developers** dashboard exposes registration status, documented request examples, a live owner-only API inspector, and access history. It does not expose integration secrets or implement public app registration.
 
 ## Authentication and connection

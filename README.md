@@ -32,6 +32,10 @@ The shadcn UI separates **Chat**, **My memory**, **Connected apps**, and **Devel
 4. To demonstrate inherited protection, first share identity and mental health, read again, and save a report. Then make **Private health note** Private in My memory. Later requests omit its summary and dependent reports, even when Notes/Reports remain Share.
 5. Revoke access and repeat the read. The backend denies it; earlier activity remains visible.
 
+### Try the mock developer application
+
+From the Developers screen, connect **Visit Prep AI**, then open the linked mock application. It requests the actual policy-filtered context through a server-side proxy, generates a deterministic appointment-preparation draft from the returned fields, and saves it through the real report endpoint. The page is an integration demo, not a clinical application: its output is synthetic, unverified, and never a diagnosis or treatment recommendation. Change a memory permission or revoke Visit Prep AI in CareVault, then reload the context to demonstrate that the next request reflects the current policy.
+
 With conservative receipt inheritance, a prepared report can already be withheld when its read included redacted fields or a partially protected note. External report writes always remain private pending review; there is no review/approval workflow in this version.
 
 ## Chat with the demo patient

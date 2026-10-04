@@ -11,6 +11,7 @@ export function defaultGrant(): Grant {
 export function integrations(): Integration[] {
   return [
     { id: 'care-assistant', name: 'Health companion', publisher: 'CareVault · live AI demo', description: 'Ask questions about the health context you choose to share.', track: 'Personal health assistant', icon: 'chat', grant: { ...defaultGrant(), scopes: ['facts:read'] } },
+    { id: 'visit-prep', name: 'Visit Prep AI', publisher: 'CareVault · integration demo', description: 'Prepare for a healthcare visit using only patient-authorized context.', track: 'Appointment preparation', icon: 'chat', grant: defaultGrant() },
     { id: 'scan-review', name: 'Scan Review', publisher: 'Imaging team · demo slot', description: 'An imaging workflow that requests only the context it needs.', track: 'Swarm-powered diagnostics', icon: 'scan', grant: defaultGrant() },
     { id: 'trial-explorer', name: 'Trial Explorer', publisher: 'Research team · demo slot', description: 'Discover research opportunities using an authorized patient profile.', track: 'AI-powered clinical trials', icon: 'flask', grant: defaultGrant() },
     { id: 'formulation-review', name: 'Formulation Review', publisher: 'Pharmacy team · demo slot', description: 'Prepare a source-linked formulation review for a pharmacist.', track: 'Personalized medicine', icon: 'pill', grant: defaultGrant() }
