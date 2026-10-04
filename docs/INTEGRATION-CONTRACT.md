@@ -71,6 +71,38 @@ Private items are absent, with no private category names, total-hidden counts, s
 
 Empty authorized results are valid. They do not mean the patient has no relevant condition or risk factor. Use a generic coverage statement, such as “Only authorized information is included,” rather than revealing which private categories exist.
 
+## Trial matching and one-time fact access
+
+Trial Explorer currently evaluates three synthetic study records with deterministic predicates. It compares only `shared` items from the current policy projection; redacted and private values are treated as unknown. Results are potential information matches, not eligibility decisions or medical advice. No model or external trial registry is used.
+
+`POST /api/v1/trials/matches`
+
+Required scope: `facts:read`.
+
+```json
+{ "patientId": "patient-demo-001" }
+```
+
+Returns the policy version and each synthetic study's criteria as `met`, `not_met`, or `unknown`. Private item IDs and values are not returned. The medication-routine study may expose an unresolved medication criterion and permit a request for its single catalog-defined medication fact.
+
+`POST /api/v1/trials/requests`
+
+Required scope: `facts:read`.
+
+```json
+{ "patientId": "patient-demo-001", "studyId": "medication-routine-interviews" }
+```
+
+Creates a pending owner request and returns its opaque request ID. The server selects the fact from the study catalog; callers cannot choose an arbitrary item ID. Requests expire after 15 minutes. Duplicate open requests for the same integration and study are rejected.
+
+The owner reviews the exact fact and may approve or deny. Approval is bound to the integration, study, fact version, and current permission version. It does not change the saved connection grant. Approval expires after 15 minutes and is rejected if the fact or permission version changed before approval/use.
+
+`POST /api/v1/trials/requests/:requestId/use`
+
+Required scope: `facts:read`; bearer identity must match the requesting integration. No request body is required. An approved request returns exactly the one fact, then atomically changes its status to consumed. A later use returns `409 trial_request_used`; it is not included in later matching calls or ordinary context reads unless the saved grant independently permits it. Activity records the disclosure reference, not the value. This explicit owner-approved, single-use release is the only exception to the connection's standing disclosure projection.
+
+The owner sandbox exposes matching, request creation, approval/denial, and one-time use in the **Trial Explorer** screen. Synthetic fixture values and listings must not be represented as real clinical-trial results.
+
 ## Download a redacted file
 
 `GET /api/v1/files/:fileId/redacted`
@@ -127,12 +159,13 @@ Required scope: `facts:read`. Apply current restrictions and dependency inherita
 Implemented owner routes (session cookie required; mutations also require same Origin):
 
 - `POST /api/session` with `{ "code": "<local owner code>" }`; `DELETE /api/session` signs out.
-- `GET /api/owner/dashboard`: integrations, memory, sources, latest 150 activity events.
+- `GET /api/owner/dashboard`: integrations, memory, sources, latest 150 activity events, and latest 50 trial fact requests.
 - `PUT /api/owner/connections/:id`: complete Grant shape from `lib/types.ts`; server assigns version.
 - `POST /api/owner/connections/:id/revoke` with `{}`.
 - `PUT /api/owner/memory/:id` with `{ "restriction": "private" }` (also `share` or `redact`).
 - `POST /api/owner/preview` with `{ "integrationId": "scan-review" }` and an optional `grant` object; hypothetical preview, including disconnected grants.
 - `POST /api/owner/inspect` with `{ "integrationId": "scan-review", "operation": "read" }` or operation `write` plus `contextRequestId` from a successful read. The server constructs the prepared report from authorized context. This trusted fixture path is not available through the external report API.
+- `POST /api/owner/trials/matches` with `{ "integrationId": "trial-explorer" }`; `POST /api/owner/trials/requests` with `integrationId` and `studyId`; then approve or deny at `/api/owner/trials/requests/:requestId/approve|deny`. The owner-only `/use` route exercises the same single-use service as the integration API.
 - `GET /api/owner/chat/status`: server key presence, model, and companion integration ID; no secret values.
 - `POST /api/owner/chat/key` with `{ "key": "<OpenRouter key>" }`: retains the key only in this local server's memory until restart. Response is status only.
 - `POST /api/owner/chat` with `{ "message": "<up to 2000 characters>", "conversationId": "<optional previous response ID>" }`: returns `reply`, actual provider `model`, authorized `context`, `conversationId`, and `historyReset`. Server history is bounded and reset when the grant policy version changes; client-supplied context, model, and history do not control the request. Chat uses the companion's read scope and does not append clinical reports.
@@ -147,6 +180,7 @@ The owner-only preview calls the same projection function used by the integratio
 - Revoked connection, missing operation scope, or another patient's record: 403 or a uniform non-disclosing 404 for object lookups.
 - Invalid request: 400.
 - Missing prepared redacted rendition: a documented `rendition_unavailable` error.
+- Invalid or unrequestable study: 400; missing approval, expired request, or stale fact/policy: 409; a second one-time use: 409 `trial_request_used`.
 - Internal policy or storage failure: fail closed; return no private partial data.
 
 Do not include raw source content in errors. Render integration text as text, not trusted HTML.
@@ -156,7 +190,7 @@ Do not include raw source content in errors. Render integration text as text, no
 | Teammate application | Reads | Optional report | Status in this repository |
 | --- | --- | --- | --- |
 | Scan Review | Authorized image and selected context | Candidate finding with sources | Contract only |
-| Trial Explorer | Authorized condition/age/location information | Potential matches and unknown criteria | Contract only |
+| Trial Explorer | Authorized condition/age/location information | Potential matches, unknown criteria, one owner-approved single-use fact | Synthetic demo workflow only; no live clinical-trial application |
 | Formulation Review | Authorized prescription, administration needs, ingredient restrictions | Pharmacist review packet | Contract only |
 
 ## Future memory-agent demonstration

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
-import { Activity as ActivityIcon, ArrowRight, Braces, Check, ChevronDown, Database, FileText, LoaderCircle, LockKeyhole, LogOut, MessageCircle, Plug, Search, ShieldCheck, X } from 'lucide-react';
+import { Activity as ActivityIcon, ArrowRight, Braces, Check, ChevronDown, Database, FileText, FlaskConical, LoaderCircle, LockKeyhole, LogOut, MessageCircle, Plug, Search, ShieldCheck, X } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
@@ -9,14 +9,16 @@ import { Input } from '../components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Chat } from '../components/carevault/chat';
 import { PermissionDialog } from '../components/carevault/permissions';
+import { TrialExplorer } from '../components/carevault/trial-explorer';
 import { ContextPreview, DisclosureControl, errorMessage, IntegrationIcon, readable, request, RequestError, scopeLabels, time } from '../components/carevault/shared';
 import { categories, categoryLabels, type ContextResponse, type Dashboard, type Disclosure, type MemoryItem } from '../lib/types';
 
-type View = 'chat' | 'memory' | 'integrations' | 'developers';
+type View = 'chat' | 'memory' | 'integrations' | 'trials' | 'developers';
 const navigation = [
   { id: 'chat', label: 'Chat', icon: MessageCircle },
   { id: 'memory', label: 'My memory', icon: Database },
   { id: 'integrations', label: 'Connected apps', icon: Plug },
+  { id: 'trials', label: 'Trial Explorer', icon: FlaskConical },
   { id: 'developers', label: 'Developers', icon: Braces },
 ] as const;
 
@@ -105,6 +107,13 @@ export default function Home() {
           </CardContent></Card>)}</div>
           <p className="privacy-note"><ShieldCheck size={15} />Permissions apply on every request. Revoking access stops future sharing; it cannot recall earlier copies.</p>
         </>}
+        {view === 'trials' && <TrialExplorer
+          integration={dashboard.integrations.find(item => item.id === 'trial-explorer')}
+          requests={dashboard.trialRequests}
+          memories={dashboard.memories}
+          onPermissions={() => setEditing('trial-explorer')}
+          onRefresh={refresh}
+        />}
         {view === 'memory' && <>
           <div className="page-heading"><div><h1>My memory</h1><p>Your information, its sources, and your privacy preferences.</p></div><Badge variant="secondary">{dashboard.memories.length} items</Badge></div>
           <Tabs defaultValue="memory"><TabsList><TabsTrigger value="memory">Memory</TabsTrigger><TabsTrigger value="sources">Sources</TabsTrigger></TabsList>
