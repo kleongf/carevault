@@ -71,7 +71,7 @@ Reports arrive as unverified integration-generated records, with server-assigned
 
 ### Patient profile
 
-Open **Profile** to edit name, date of birth, contact details, allergies, medications, conditions, accessibility needs, emergency contact, and care preferences. Save explicitly; Cancel discards edits. Unsaved edits survive workspace navigation and polling. Concurrent saves return a conflict instead of silently overwriting another session.
+Open **Profile** for compact, editable shadcn tables grouped into Basics, Critical information, and Care preferences. Edit name, date of birth, contact details, allergies, medications, conditions, accessibility needs, emergency contact, and care preferences. Save explicitly; Cancel discards edits. Unsaved edits survive workspace navigation and polling. Concurrent saves return a conflict instead of silently overwriting another session.
 
 Fields are patient-reported and unverified. Blank medical fields mean unknown. The initial profile uses the demo name but does not infer medical history from seeded documents or legacy facts. Saving does not rewrite uploaded records or Trial Explorer's legacy structured facts.
 

@@ -166,18 +166,25 @@
 .api-details > summary { cursor: pointer; }
 .api-details > summary h2 { display: inline; margin-left: 8px; }
 
-.profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
-.profile-card { display: grid; gap: 14px; padding: 22px; }
-.profile-card h2 { font-size: 15px; font-weight: 600; }
-.profile-card label { display: block; margin-bottom: 6px; font-size: 12px; }
-.profile-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.profile-wide { grid-column: 1 / -1; }
-.profile-card textarea { min-height: 70px; resize: vertical; }
+.profile-tables { overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+.profile-tables section + section { border-top: 1px solid var(--border); }
+.profile-tables h2 { padding: 12px 18px; background: var(--muted); border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600; }
+.profile-table { table-layout: fixed; }
+.profile-table th { width: 200px; padding: 12px 18px; vertical-align: top; color: var(--muted-foreground); font-size: 13px; }
+.profile-table td { padding: 6px 14px 6px 0; }
+.profile-table input, .profile-table textarea { border-color: transparent; box-shadow: none; }
+.profile-table input:hover, .profile-table textarea:hover { border-color: var(--input); }
+.profile-table input:focus-visible, .profile-table textarea:focus-visible { background: var(--background); }
+.profile-table textarea { min-height: 60px; resize: vertical; }
 .profile-footer { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-top: 18px; }
 .profile-footer .compact-details { max-width: 440px; margin: 0; }
-@media (max-width: 800px) { .profile-grid { grid-template-columns: 1fr; } }
-@media (max-width: 480px) { .profile-fields { grid-template-columns: 1fr; } .profile-card { padding: 16px; } .profile-footer { gap: 8px; } }
+@media (max-width: 480px) {
+  .profile-table th { width: 116px; padding: 14px 12px; font-size: 12px; }
+  .profile-table td { padding-right: 8px; }
+  .profile-table textarea { min-height: 88px; }
+  .profile-tables h2 { padding-left: 12px; }
+  .profile-footer { gap: 8px; }
+}
 .patient > div { min-width: 0; }
 .patient strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .patient-profile .page-heading { flex-wrap: wrap; }
-.profile-grid > *, .profile-fields > * { min-width: 0; }

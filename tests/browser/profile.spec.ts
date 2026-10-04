@@ -24,6 +24,9 @@ async function fits(page: Page) {
 test('patient profile saves all sections, updates identity and requires explicit app sharing', async ({ page }, info) => {
   await login(page);
   const before = await profile(page);
+  await expect(page.getByRole('table', { name: 'Basics', exact: true }).getByRole('row')).toHaveCount(5);
+  await expect(page.getByRole('table', { name: 'Critical information', exact: true }).getByRole('row')).toHaveCount(3);
+  await expect(page.getByRole('table', { name: 'Care preferences', exact: true }).getByRole('row')).toHaveCount(3);
   const fields = {
     name: `Jamie ${info.project.name}`, dateOfBirth: '1992-04-18', email: 'jamie@example.test',
     phone: '202-555-0199', address: '10 Fictional Lane', allergies: 'Patient-reported peanut allergy',
@@ -36,7 +39,7 @@ test('patient profile saves all sections, updates identity and requires explicit
     ['Medications', fields.medications], ['Conditions', fields.conditions],
     ['Accessibility needs', fields.accessibilityNeeds], ['Emergency contact', fields.emergencyContact],
     ['Care preferences', fields.carePreferences],
-  ]) await page.getByLabel(label, { exact: true }).fill(value);
+  ]) await page.getByLabel(label, { exact: true }).and(page.locator('input, textarea')).fill(value);
   await page.getByRole('button', { name: 'Save changes', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText('Saved.');
   const saved = await profile(page);
@@ -111,25 +114,25 @@ test('profile drafts survive navigation and polling; reset, queued previews and 
 test('a second patient session cannot silently overwrite an unsaved profile draft', async ({ page, browser }) => {
   await login(page);
   const baseline = await profile(page);
-  await page.getByLabel('Care preferences', { exact: true }).fill('Unsaved local preference');
+  await page.getByRole('textbox', { name: 'Care preferences', exact: true }).fill('Unsaved local preference');
   const other = await browser.newContext({ baseURL: origin });
   try {
     const second = await other.newPage();
     await login(second);
-    await second.getByLabel('Care preferences', { exact: true }).fill(`Saved elsewhere ${baseline.version}`);
+    await second.getByRole('textbox', { name: 'Care preferences', exact: true }).fill(`Saved elsewhere ${baseline.version}`);
     await second.getByRole('button', { name: 'Save changes', exact: true }).click();
     await expect(second.getByRole('status')).toHaveText('Saved.');
     await page.waitForResponse(response => response.url().endsWith('/api/patient/dashboard') && response.ok());
-    await expect(page.getByLabel('Care preferences', { exact: true })).toHaveValue('Unsaved local preference');
+    await expect(page.getByRole('textbox', { name: 'Care preferences', exact: true })).toHaveValue('Unsaved local preference');
     await page.getByRole('button', { name: 'Save changes', exact: true }).click();
     await expect(page.locator('.alert.error')).toContainText('Profile changed. Reload before saving.');
     expect((await profile(page)).fields.carePreferences).toBe(`Saved elsewhere ${baseline.version}`);
     page.once('dialog', dialog => dialog.dismiss());
     await page.getByRole('button', { name: 'Reload profile', exact: true }).click();
-    await expect(page.getByLabel('Care preferences', { exact: true })).toHaveValue('Unsaved local preference');
+    await expect(page.getByRole('textbox', { name: 'Care preferences', exact: true })).toHaveValue('Unsaved local preference');
     page.once('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: 'Reload profile', exact: true }).click();
-    await expect(page.getByLabel('Care preferences', { exact: true })).toHaveValue(`Saved elsewhere ${baseline.version}`);
+    await expect(page.getByRole('textbox', { name: 'Care preferences', exact: true })).toHaveValue(`Saved elsewhere ${baseline.version}`);
     await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toBeDisabled();
     await expect(page.locator('.alert.error')).toHaveCount(0);
   } finally { await other.close(); }
