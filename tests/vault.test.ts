@@ -317,6 +317,63 @@ test('revocation denies later access while retaining historic disclosure records
   assert.ok(activity.some(a => a.outcome === 'denied'));
 });
 
+test('trial matching uses shared facts and owner-approved fact access is atomic and single-use', async t => {
+  const f = await setup(t);
+  const connected = await f.connect();
+  const originalGrant = structuredClone(connected.grant);
+  const matchResponse = await f.request('/api/v1/trials/matches', { integration: integrationId, body: { patientId } });
+  assert.equal(matchResponse.status, 200);
+  const matches = await matchResponse.json();
+  assert.equal(matches.studies.find((study: { studyId: string }) => study.studyId === 'community-respiratory-diary').status, 'potential');
+  const medicationStudy = matches.studies.find((study: { studyId: string }) => study.studyId === 'medication-routine-interviews');
+  assert.equal(medicationStudy.additionalFactRequestAvailable, true);
+  assert.equal(medicationStudy.criteria.find((criterion: { id: string }) => criterion.id === 'medication').status, 'unknown');
+  assert.ok(!JSON.stringify(matches).includes('Medication A'));
+
+  const requested = await f.request('/api/owner/trials/requests', { owner: true, body: { integrationId, studyId: medicationStudy.studyId, factId: 'email' } });
+  assert.equal(requested.status, 201);
+  const request = await requested.json();
+  await error(await f.request(`/api/v1/trials/requests/${request.id}/use`, { integration: integrationId, method: 'POST' }), 409, 'trial_request_unavailable');
+  assert.equal((await f.dashboard()).trialRequests.find(item => item.id === request.id)?.factId, 'medication');
+
+  const approval = await f.request(`/api/owner/trials/requests/${request.id}/approve`, { owner: true, body: {} });
+  assert.equal(approval.status, 200);
+  assert.deepEqual((await f.dashboard()).integrations.find(item => item.id === integrationId)!.grant, originalGrant);
+  const uses = await Promise.all([
+    f.request(`/api/v1/trials/requests/${request.id}/use`, { integration: integrationId, method: 'POST' }),
+    f.request(`/api/v1/trials/requests/${request.id}/use`, { integration: integrationId, method: 'POST' })
+  ]);
+  assert.equal(uses.filter(response => response.status === 200).length, 1);
+  assert.equal(uses.filter(response => response.status === 409).length, 1);
+  const delivered = await uses.find(response => response.status === 200)!.json();
+  assert.equal(delivered.fact.id, 'medication');
+  assert.match(delivered.fact.value, /illustrative prescription only/);
+  assert.ok(!(await (await f.read()).text()).includes('Medication A'));
+  const afterUse = await (await f.request('/api/v1/trials/matches', { integration: integrationId, body: { patientId } })).json();
+  assert.equal(afterUse.studies.find((study: { studyId: string }) => study.studyId === medicationStudy.studyId).criteria.find((criterion: { id: string }) => criterion.id === 'medication').status, 'unknown');
+  assert.equal((await f.dashboard()).integrations.find(item => item.id === integrationId)!.grant.categories.medications, 'private');
+  assert.ok((await f.dashboard()).activity.some(item => item.operation === 'trial_fact_use' && item.outcome === 'consumed'));
+});
+
+test('trial one-time approvals become unusable after grant changes or denial', async t => {
+  const f = await setup(t);
+  await f.connect();
+  const createRequest = async () => {
+    const response = await f.request('/api/owner/trials/requests', { owner: true, body: { integrationId, studyId: 'medication-routine-interviews' } });
+    assert.equal(response.status, 201);
+    return response.json();
+  };
+  const denied = await createRequest();
+  assert.equal((await f.request(`/api/owner/trials/requests/${denied.id}/deny`, { owner: true, body: {} })).status, 200);
+  await error(await f.request(`/api/v1/trials/requests/${denied.id}/use`, { integration: integrationId, method: 'POST' }), 409, 'trial_request_unavailable');
+
+  const approved = await createRequest();
+  assert.equal((await f.request(`/api/owner/trials/requests/${approved.id}/approve`, { owner: true, body: {} })).status, 200);
+  await f.restrict('age', 'redact');
+  await error(await f.request(`/api/v1/trials/requests/${approved.id}/use`, { integration: integrationId, method: 'POST' }), 409, 'trial_request_unavailable');
+  assert.equal((await f.dashboard()).trialRequests.find(item => item.id === approved.id)?.status, 'expired');
+});
+
 test('grants, restrictions, credentials, reports, and receipts survive a real SQLite restart', async t => {
   const f = await setup(t);
   await f.connect(); await f.restrict('age', 'redact');

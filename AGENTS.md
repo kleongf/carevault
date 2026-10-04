@@ -115,3 +115,13 @@ No arbitrary ingestion/OCR/DICOM, general PII detection, semantic search, report
 No production identity/tenant system, managed storage, encryption-at-rest/key lifecycle, credential rotation UI, automated backups, incident operations, or compliance assessment is implemented. Process-local session and rate-limit behavior is not a multi-instance design. Do not deploy SQLite onto ephemeral Vercel storage. The production path in docs/PLAN.md requires explicit scope, engineering, clinical, and legal review.
 
 Update docs/VERIFICATION.md with actual new evidence and limits when behavior changes. Handoffs must state what changed, what was tested, compatibility or migration implications, and any remaining blocker. Keep edits surgical and preserve user work.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

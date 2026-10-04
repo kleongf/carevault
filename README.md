@@ -2,7 +2,7 @@
 
 A patient-controlled memory layer and integration hub for healthcare AI.
 
-**Status (October 3, 2026): working local hackathon prototype.** The patient hub, developer dashboard, permission gateway, selected redaction, persistent reports, and OpenRouter chatbot are implemented. All patient data is synthetic. Imaging, trial, and formulation applications and arbitrary document processing are not implemented.
+**Status (October 3, 2026): working local hackathon prototype.** The patient hub, developer dashboard, permission gateway, selected redaction, persistent reports, OpenRouter chatbot, and a deterministic synthetic Trial Explorer workflow are implemented. All patient data and study listings are synthetic. The imaging and formulation applications, real trial listings, clinical eligibility decisions, and arbitrary document processing are not implemented.
 
 ## Run locally
 
@@ -24,7 +24,7 @@ The server binds to loopback. Do not expose this prototype publicly or load real
 
 ## Try the demonstration
 
-The shadcn UI separates **Chat**, **My memory**, **Connected apps**, and **Developers**. Developers contains the registered applications, API examples, request inspector, and access history. It is an authenticated owner sandbox, not a public developer account system; tokens remain in the local credentials file.
+The shadcn UI separates **Chat**, **My memory**, **Connected apps**, **Trial Explorer**, and **Developers**. Developers contains the registered applications, API examples, request inspector, and access history. It is an authenticated owner sandbox, not a public developer account system; tokens remain in the local credentials file.
 
 1. In Connected apps, connect **Scan Review**, keeping identity Redact and mental health Private. Preview and save the grant.
 2. Select it in the Developers **Request inspector** and run a read. Inspect the actual JSON: identifiers are replaced and private-topic text is absent.
@@ -33,6 +33,15 @@ The shadcn UI separates **Chat**, **My memory**, **Connected apps**, and **Devel
 5. Revoke access and repeat the read. The backend denies it; earlier activity remains visible.
 
 With conservative receipt inheritance, a prepared report can already be withheld when its read included redacted fields or a partially protected note. External report writes always remain private pending review; there is no review/approval workflow in this version.
+
+## Try Trial Explorer
+
+1. Connect **Trial Explorer** with `Read memory`; leave **Medications** Private.
+2. Open **Trial Explorer**. Its small synthetic catalog compares only shared facts and shows unknown criteria without filling them in.
+3. Request the medication fact for **Medication Routine Interviews**. Review the exact synthetic fact in the owner request and approve one use, or deny it.
+4. Select **Use approved fact once**. The backend returns that one fact for one request, consumes the grant atomically, and the next match still shows the criterion as unknown. Saved connection permissions remain unchanged.
+
+This is deterministic demo matching, not a live study search or an eligibility/medical decision. One-time requests expire after 15 minutes and are rejected if the fact or saved permission version changes before use.
 
 ## Chat with the demo patient
 
@@ -85,11 +94,11 @@ Use local SQLite for this demo. Vercel deployment requires a deliberate migratio
 
 | Path | Responsibility |
 | --- | --- |
-| `app/page.tsx`, `app/globals.css` | Four owner-facing screens and responsive styling |
-| `components/carevault/` | Chat, permissions dialog, and shared display helpers |
+| `app/page.tsx`, `app/globals.css` | Five owner-facing screens and responsive styling |
+| `components/carevault/` | Chat, Trial Explorer, permissions dialog, and shared display helpers |
 | `components/ui/` | shadcn/Radix components; bundled license included |
 | `app/api/[...path]/route.ts`, `lib/http.ts` | Next.js adapter, authentication, same-origin checks, bounded JSON, safe errors |
-| `lib/service.ts` | Grants, reads, receipts, report writes, protected downloads, activity |
+| `lib/service.ts`, `lib/trials.ts` | Grants, reads, reports, protected downloads, one-time fact release, deterministic synthetic study matching |
 | `lib/policy.ts` | Deterministic disclosure ordering, redaction, and dependency traversal |
 | `lib/store.ts` | SQLite persistence, transactions, credentials, additive registrations |
 | `lib/seed.ts`, `lib/types.ts` | Synthetic fixtures and shared domain types |
@@ -117,8 +126,9 @@ The model does not decide what it can read. The backend resolves the caller and 
 | Reports | Scoped append, source validation, attribution, persistence | Medical content is prepared; external writes remain private pending a future review UI |
 | Files | Current-policy intake/visit plain-text extracts | PDF, scan, and image cards have no binary processing or original-file downloads |
 | Developers | Registered apps, examples, actual request inspector | No public developer signup, marketplace, or self-service token issuance |
+| Trial Explorer | Deterministic potential matches, unresolved criteria, owner-approved one-request fact access | Synthetic catalog and facts only; no live listings, model-based eligibility decisions, or clinical recommendations |
 | Chat | Live permitted-memory responses from the selected model | Educational synthetic demo; no diagnosis, prescribing, or clinical record writes |
-| Medical apps | Scan Review, Trial Explorer, Formulation Review registrations | Teammates implement their application logic separately |
+| Medical apps | Scan Review and Formulation Review registrations; Trial Explorer demo flow | Imaging and formulation apps remain separate; no production trial application |
 
 ## Configuration and secret handling
 
@@ -143,6 +153,7 @@ SQLite stores JSON in a `records(kind, id, body)` table using WAL mode. Local di
 - Owner login uses an eight-hour HMAC-signed HttpOnly, SameSite=Strict session cookie. Owner mutations require a matching Origin. Login throttling is process-local.
 - Integration tokens authenticate separate callers. Token hashes live in SQLite; raw generated credentials live in private `data/credentials.json`. The developer UI never exposes them.
 - More restrictive rules win: **Private > Redact > Share**. Private entries are absent rather than represented by revealing topic placeholders or hidden counts.
+- Trial Explorer's one-time flow is an explicit owner-approved exception for one catalog-defined fact and one request; it never updates the saved grant.
 - Known parents and sources restrict descendants. Missing, cyclic, cross-patient, and pending-review provenance fails closed.
 - External reports cannot promote their verification status or change grants. Receipt dependencies are inherited conservatively even if a caller omits source IDs.
 - File access rechecks current permissions. Unsupported renditions fail instead of falling back to originals.
@@ -163,12 +174,15 @@ See [the full contract](docs/INTEGRATION-CONTRACT.md) for request and response e
 | `GET /api/v1/files/:fileId/redacted` | `files:download` | Obtain a supported current-policy text rendition |
 | `POST /api/v1/reports` | `reports:create` | Append an attributed unverified report |
 | `GET /api/v1/reports/:reportId` | `facts:read` | Read a report under current restrictions |
+| `POST /api/v1/trials/matches` | `facts:read` | Compare current shared facts with the synthetic study catalog |
+| `POST /api/v1/trials/requests` | `facts:read` | Request one catalog-defined fact for owner approval |
+| `POST /api/v1/trials/requests/:requestId/use` | `facts:read` | Consume an approved one-time fact grant |
 
 Use `Authorization: Bearer <integration token>` and JSON for POST bodies. IDs are `scan-review`, `trial-explorer`, `formulation-review`, and `care-assistant`. Connect the app in the owner UI first. A supplied patient ID never grants access. The optional context `query` is accepted but does not perform semantic search; use categories for filtering.
 
 ## Verified state and production path
 
-Current evidence: **29 tests pass**, type checking passes, and the production build passes. Tests use temporary SQLite stores and fake provider transport without consuming API quota. A separate live browser check returned a Space Bunny Alpha answer using 14 permitted synthetic memory items. Verification ran on macOS arm64 with Node 26.8.1; the recommended Node 24 runtime has not been separately tested. No CI workflow or complete accessibility/cross-browser audit is configured. Run `git diff --check` alongside the commands above before handing off changes.
+Current evidence: **31 tests pass**, type checking passes, and the production build passes. The latest full checks ran on Windows with Node 24.21.0. Tests use temporary SQLite stores and fake provider transport without consuming API quota. Earlier browser/provider verification ran on macOS arm64 with Node 26.8.1 and returned a Space Bunny Alpha answer using 14 permitted synthetic memory items. No CI workflow or complete accessibility/cross-browser audit is configured. Run `git diff --check` alongside the commands above before handing off changes.
 
 Before real healthcare deployment, define the regulated use and recipients, then implement production identity and tenant isolation, durable managed storage, encryption/key management, credential lifecycle, reviewed ingestion/provenance, report review, retention/deletion controls, audit operations, monitoring, backups, incident response, and appropriate vendor agreements. Clinical evaluation and legal/compliance review are separate requirements. These are future work, not current guarantees.
 

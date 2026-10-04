@@ -45,3 +45,15 @@ This handoff runs locally. Public hosting, hosted storage, multi-instance consis
 - The vault prevents future releases after revocation; it cannot delete copies already held by an integration.
 - Local authentication and permissions demonstrate the boundary. No HIPAA compliance claim; the production assessment path remains in PLAN.md.
 - Browser test artifacts and the disk audit are in the parent `outputs/` directory. The browser check left one prepared report and revocation history in the local synthetic vault; a fresh clone seeds a clean vault.
+
+## Trial Explorer update
+
+Verified on 2026-10-03 on Windows with Node 24.21.0 after adding the synthetic Trial Explorer workflow:
+
+- `npm test`: 31 passed, none failed or skipped.
+- `npm run typecheck`: passed.
+- `npm run build`: passed.
+- An isolated production-server HTTP check used a temporary SQLite vault and verified: a private medication fact starts unknown; an owner approves a single-use request; the bearer-authenticated use returns that fact once; a second use returns 409; later matching reports the criterion as unknown; and the saved medication grant remains Private.
+- Authenticated desktop/mobile screenshots were not captured for this update. The browser session was left at owner login rather than passing the private owner access code into browser automation.
+
+The new comparisons are deterministic predicates over current shared facts and three synthetic study entries. They do not use an LLM, external trial registry, or real eligibility criteria. The explicit one-time owner approval is bound to the integration, study, fact version, and policy version, expires after 15 minutes, and does not modify the saved grant.
