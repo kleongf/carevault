@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Chest X-ray Review</title><link rel="stylesheet" href="/style.css"></head>
+<body><main><header><div class="mark">CV</div><div><p class="eyebrow">CAREVAULT INTEGRATION</p><h1>Chest X-ray Review</h1></div><a href="http://127.0.0.1:3040/" target="_blank" rel="noreferrer">Open vault ↗</a></header>
+<p class="notice">Research demo · Unverified model output, not a diagnosis.</p>
+<section class="panel" id="login"><h2>Sign in to Chest X-ray Review</h2><form id="login-form"><label for="username">Username</label><input id="username" name="username" autocomplete="username" maxlength="100" required><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" maxlength="256" required><button id="sign-in" type="submit">Sign in</button><p id="login-error" role="alert"></p></form></section>
+<div id="workspace" hidden><div class="session-bar"><button id="sign-out" class="secondary">Sign out</button></div>
+<section class="panel"><div class="section-title"><h2>Shared images</h2><button id="refresh" class="secondary">Refresh</button></div>
+<label for="image">Image</label><select id="image"><option value="">Loading…</option></select>
+<label for="variant">Shared version</label><select id="variant"></select>
+<img id="preview" alt="Selected shared chest X-ray" hidden>
+<button id="analyze" disabled>Analyze image</button><p id="status" role="status" aria-live="polite"></p></section>
+<section class="panel" id="result" hidden><div class="section-title"><h2>Research report</h2><span class="badge">Unverified</span></div><pre id="report"></pre><button id="save">Save report to CareVault</button></section>
+</div></main><script src="/app.js"></script></body></html>

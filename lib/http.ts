@@ -1,25 +1,14 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
-import { Store, digest, getStore } from './store.ts';
+import { Store, getStore } from './store.ts';
 import { Vault } from './service.ts';
 import { ApiError } from './policy.ts';
 import { chat, chatStatus, setChatKey } from './chat.ts';
+import { authenticateAccount, cookieHeader, endSession, issueSession, publicAccount, requireAccount } from './accounts.ts';
+import { Developer } from './developer.ts';
+import { RecordVault, type RedactionProfile } from './records.ts';
 
-const cookieName = 'carevault_owner';
 const noStore = { 'Cache-Control': 'no-store, private', 'X-Content-Type-Options': 'nosniff' };
-const loginAttempts = new Map<string, { count: number; since: number }>();
 function json(data: unknown, status = 200, headers: Record<string, string> = {}) {
   return Response.json(data, { status, headers: { ...noStore, ...headers } });
-}
-function signature(store: Store, value: string) { return createHmac('sha256', store.credentials.sessionSecret).update(value).digest('hex'); }
-export function sessionToken(store: Store): string {
-  const expiration = String(Date.now() + 8 * 60 * 60 * 1000);
-  return `${expiration}.${signature(store, expiration)}`;
-}
-function requireOwner(request: Request, store: Store) {
-  const token = request.headers.get('cookie')?.split(';').map(x => x.trim()).find(x => x.startsWith(`${cookieName}=`))?.slice(cookieName.length + 1);
-  if (!token || token.length > 128) throw new ApiError(401, 'sign_in_required');
-  const [expiration, mac, extra] = token.split('.');
-  if (extra || !/^\d{13}$/.test(expiration) || !/^[a-f0-9]{64}$/.test(mac ?? '') || Number(expiration) <= Date.now() || !timingSafeEqual(Buffer.from(mac), Buffer.from(signature(store, expiration)))) throw new ApiError(401, 'sign_in_required');
 }
 function sameOrigin(request: Request) {
   const origin = request.headers.get('origin');
@@ -28,7 +17,7 @@ function sameOrigin(request: Request) {
   const expected = `${url.protocol}//${request.headers.get('host') ?? url.host}`;
   if (!origin || origin !== expected) throw new ApiError(403, 'origin_not_allowed');
 }
-async function body(request: Request): Promise<Record<string, unknown>> {
+async function body(request: Request, maximum = 32_768): Promise<Record<string, unknown>> {
   if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) throw new ApiError(415, 'json_required');
   const reader = request.body?.getReader();
   if (!reader) throw new ApiError(400, 'invalid_json');
@@ -38,7 +27,7 @@ async function body(request: Request): Promise<Record<string, unknown>> {
       const next = await reader.read();
       if (next.done) break;
       length += next.value.length;
-      if (length > 32_768) { await reader.cancel(); throw new ApiError(413, 'request_too_large'); }
+      if (length > maximum) { await reader.cancel(); throw new ApiError(413, 'request_too_large'); }
       chunks.push(next.value);
     }
     const parsed: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'));
@@ -49,8 +38,29 @@ async function body(request: Request): Promise<Record<string, unknown>> {
     throw new ApiError(400, 'invalid_json');
   }
 }
-function cookie(request: Request, value: string, clear = false) {
-  return `${cookieName}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${clear ? 0 : 28800}${new URL(request.url).protocol === 'https:' ? '; Secure' : ''}`;
+async function uploadBytes(request: Request): Promise<Buffer> {
+  const maxBytes = 20 * 1024 * 1024;
+  if (Number(request.headers.get('content-length')) > maxBytes) throw new ApiError(413, 'upload_too_large');
+  const reader = request.body?.getReader();
+  if (!reader) throw new ApiError(400, 'empty_upload');
+  const chunks: Uint8Array[] = []; let length = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      length += value.length;
+      if (length > maxBytes) { await reader.cancel(); throw new ApiError(413, 'upload_too_large'); }
+      chunks.push(value);
+    }
+    return Buffer.concat(chunks);
+  } finally { reader.releaseLock(); }
+}
+function documentResponse(request: Request, file: { bytes: Buffer; mime: string; requestId?: string }) {
+  const extension = ({ 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg', 'text/plain': 'txt' } as Record<string,string>)[file.mime] ?? 'bin';
+  return new Response(new Uint8Array(file.bytes), { headers: { ...noStore, 'Content-Type': file.mime,
+    'Content-Disposition': `${new URL(request.url).searchParams.get('download') === '1' ? 'attachment' : 'inline'}; filename="record.${extension}"`,
+    'X-Frame-Options': 'SAMEORIGIN', 'Content-Security-Policy': "sandbox; default-src 'none'; frame-ancestors 'self'",
+    ...(file.requestId ? { 'X-CareVault-Receipt': file.requestId } : {}) } });
 }
 export async function handleRequest(request: Request, injectedStore?: Store): Promise<Response> {
   let store: Store | undefined; let vault: Vault | undefined; let actor: string | undefined;
@@ -59,28 +69,76 @@ export async function handleRequest(request: Request, injectedStore?: Store): Pr
     const pathname = new URL(request.url).pathname;
     const method = request.method;
     if (pathname === '/api/session') {
+      if (method === 'GET') return json({ account: publicAccount(requireAccount(request, store)) });
       if (method !== 'POST' && method !== 'DELETE') throw new ApiError(405, 'method_not_allowed');
       sameOrigin(request);
-      if (method === 'DELETE') return json({ ok: true }, 200, { 'Set-Cookie': cookie(request, '', true) });
-      const attemptsKey = digest(store.credentials.sessionSecret);
-      const prior = loginAttempts.get(attemptsKey);
-      const attempts = !prior || Date.now() - prior.since > 60_000 ? { count: 0, since: Date.now() } : prior;
-      attempts.count++; loginAttempts.set(attemptsKey, attempts);
-      if (attempts.count > 20) throw new ApiError(429, 'try_again_later', 'Too many attempts. Try again in a minute.');
-      const input = await body(request);
-      if (typeof input.code !== 'string' || input.code.length > 256 || !timingSafeEqual(Buffer.from(digest(input.code)), Buffer.from(digest(store.credentials.ownerCode)))) throw new ApiError(401, 'invalid_access_code', 'That access code is not valid.');
-      loginAttempts.delete(attemptsKey);
-      return json({ ok: true }, 200, { 'Set-Cookie': cookie(request, sessionToken(store)) });
+      if (method === 'DELETE') { endSession(request, store); return json({ ok: true }, 200, { 'Set-Cookie': cookieHeader(request, '', true) }); }
+      const account = await authenticateAccount(store, await body(request));
+      return json({ account: publicAccount(account) }, 200, { 'Set-Cookie': cookieHeader(request, issueSession(store, account)) });
+    }
+    if (pathname.startsWith('/api/developer/')) {
+      const account = requireAccount(request, store, 'developer');
+      if (method !== 'GET') sameOrigin(request);
+      const developer = new Developer(store, account);
+      if (pathname === '/api/developer/apps' && method === 'GET') return json({ apps: developer.list() });
+      if (pathname === '/api/developer/apps' && method === 'POST') return json(developer.create(await body(request)), 201);
+      const app = pathname.match(/^\/api\/developer\/apps\/([a-zA-Z0-9-]+)(\/credential)?$/);
+      if (app && !app[2] && method === 'PUT') return json(developer.update(app[1], await body(request)));
+      if (app?.[2] && method === 'POST') return json(developer.issueCredential(app[1]));
+      if (app?.[2] && method === 'DELETE') return json(developer.revokeCredential(app[1]));
+      throw new ApiError(404, 'not_found');
+    }
+    if (pathname.startsWith('/api/patient/')) {
+      requireAccount(request, store, 'patient'); actor = 'You';
+      if (method !== 'GET') sameOrigin(request);
+      const records = new RecordVault(store);
+      if (pathname === '/api/patient/dashboard' && method === 'GET') return json(records.dashboard());
+      if (pathname === '/api/patient/records' && method === 'POST') {
+        let title: string;
+        try { title = decodeURIComponent(request.headers.get('x-file-name') ?? ''); } catch { throw new ApiError(400, 'invalid_title'); }
+        const bytes = await uploadBytes(request);
+        requireAccount(request, store, 'patient');
+        return json(records.upload(bytes, request.headers.get('content-type') ?? '', title, (request.headers.get('x-redaction-profile') ?? 'identifiers') as RedactionProfile), 201);
+      }
+      const record = pathname.match(/^\/api\/patient\/records\/([a-zA-Z0-9-]+)\/(text|files\/(original|redacted))$/);
+      if (record && method === 'GET') {
+        if (record[2] === 'text') return new Response(records.ownerText(record[1]), { headers: { ...noStore, 'Content-Type': 'text/plain; charset=utf-8' } });
+        return documentResponse(request, records.ownerFile(record[1], record[3] as 'original' | 'redacted'));
+      }
+      const connection = pathname.match(/^\/api\/patient\/apps\/([a-zA-Z0-9-]+)(\/revoke)?$/);
+      if (connection && !connection[2] && method === 'PUT') return json(records.saveConnection(connection[1], await body(request)));
+      if (connection?.[2] && method === 'POST') { records.revoke(connection[1]); return json({ ok: true }); }
+      throw new ApiError(404, 'not_found');
+    }
+    if (pathname.startsWith('/api/v2/')) {
+      const match = request.headers.get('authorization')?.match(/^Bearer ([A-Za-z0-9_-]+)$/);
+      const id = vault.authenticate(match?.[1] ?? ''); actor = vault.integration(id).name;
+      const records = new RecordVault(store);
+      if (pathname === '/api/v2/records' && method === 'GET') return json({ records: records.listForApp(id) });
+      if (pathname === '/api/v2/reports' && method === 'POST') {
+        const input = await body(request, 262_144);
+        vault.authenticate(match?.[1] ?? '');
+        return json(records.report(id, input), 201);
+      }
+      const record = pathname.match(/^\/api\/v2\/records\/([a-zA-Z0-9-]+)\/(text|files\/(original|redacted))$/);
+      if (record && method === 'GET') {
+        if (record[2] === 'text') {
+          const result = records.textForApp(id, record[1]);
+          return new Response(result.text, { headers: { ...noStore, 'Content-Type': 'text/plain; charset=utf-8', 'X-CareVault-Receipt': result.requestId } });
+        }
+        return documentResponse(request, records.fileForApp(id, record[1], record[3] as 'original' | 'redacted'));
+      }
+      throw new ApiError(404, 'not_found');
     }
     if (pathname.startsWith('/api/owner/')) {
-      requireOwner(request, store); actor = 'You';
+      requireAccount(request, store, 'patient'); actor = 'You';
       if (method !== 'GET') sameOrigin(request);
       if (pathname === '/api/owner/dashboard' && method === 'GET') return json(vault.dashboard());
       if (pathname === '/api/owner/chat/status' && method === 'GET') return json(chatStatus(store));
       const input = method === 'GET' ? {} : await body(request);
       if (pathname === '/api/owner/chat/key' && method === 'POST') return json(setChatKey(store, input.key));
       if (pathname === '/api/owner/chat' && method === 'POST') { actor = 'Health companion'; return json(await chat(vault, input)); }
-      const connection = pathname.match(/^\/api\/owner\/connections\/([a-z-]+)(\/revoke)?$/);
+      const connection = pathname.match(/^\/api\/owner\/connections\/([a-zA-Z0-9-]+)(\/revoke)?$/);
       if (connection && !connection[2] && method === 'PUT') return json(vault.saveGrant(connection[1], input));
       if (connection?.[2] && method === 'POST') { vault.revoke(connection[1]); return json({ ok: true }); }
       const memory = pathname.match(/^\/api\/owner\/memory\/([a-zA-Z0-9-]+)$/);
@@ -98,6 +156,7 @@ export async function handleRequest(request: Request, injectedStore?: Store): Pr
     if (pathname.startsWith('/api/v1/')) {
       const match = request.headers.get('authorization')?.match(/^Bearer ([A-Za-z0-9_-]+)$/);
       const id = vault.authenticate(match?.[1] ?? ''); actor = vault.integration(id).name;
+      if (vault.integration(id).recordApiOnly) throw new ApiError(403, 'record_api_required');
       if (pathname === '/api/v1/context' && method === 'POST') return json(vault.read(id, await body(request)));
       if (pathname === '/api/v1/reports' && method === 'POST') return json(vault.report(id, await body(request)), 201);
       const report = pathname.match(/^\/api\/v1\/reports\/([a-zA-Z0-9-]+)$/);

@@ -1,117 +1,90 @@
-# Working agreement
+# CareVault working agreement
 
-Read README.md and docs/PLAN.md before implementation. The user has prioritized a clear hackathon demonstration over feature completeness.
+## Standing cleanup authorization
 
-## Scope
+On October 3, 2026 the user authorized deleting regeneratable caches, disposable Docker data, and rebuildable Cursor/Chrome data for this project. Inspect exact targets, stop writers when necessary, and verify reclaimed space. This does not authorize deleting source code, patient vaults, credentials, browser profiles/history, Cursor work history, personal files, model artifacts, or active project dependencies merely because they are large. Docker data was explicitly described as unimportant; stop Docker before deleting its virtual disk. Do not ask again for cleanup already covered by this authorization.
 
-- Implement the patient-facing integration hub and shared memory backend only.
-- The user additionally authorized a Health companion chatbot using OpenRouter free models, a shadcn UI refresh, and a developer integrations dashboard. Preserve these as part of the demo; the three specialized medical applications remain separate.
-- Do not implement the imaging, trial, or formulation applications. Keep their interface in docs/INTEGRATION-CONTRACT.md for teammates.
-- Use synthetic data. Label prepared extraction, redacted examples, and medical findings accurately.
-- Do not add autonomous clinical decision-making or overwrite established facts through integration APIs.
-- Connection-time grants remain active until changed or revoked. Do not add per-request approval prompts to routine permitted operations.
-- Preserve separate permissions for reading facts, downloading redacted files, and creating reports.
-- An LLM can propose content; deterministic backend code enforces permissions.
-- Never expose raw private files or integration credentials in public assets or client-side code.
+## Approved scope
 
-## Execution
+Read README.md, docs/PLAN.md, and docs/VERIFICATION.md before implementation. Current source and measured results take precedence over historical chat-era assumptions.
 
-- State assumptions and surface tradeoffs before implementation. Ask when ambiguity would change core behavior; use documented defaults for routine choices.
-- Choose the smallest implementation that satisfies the selected demo. Avoid a general policy language, multiple database backends, agent orchestration infrastructure, or a marketplace.
-- Keep changes focused. Do not refactor unrelated work or overwrite teammates' changes.
-- Use the acceptance checks in docs/BUILD.md. Verify the actual API response, not only hidden UI elements.
-- Distinguish implemented behavior, fixtures, test results, and future work in handoffs.
-- Do not claim HIPAA compliance, universal de-identification, or deletion of copies held by external recipients.
+- Implement a local synthetic/research-data hackathon prototype with two seeded username/password roles: patient and developer. Preserve the existing vault.
+- Patient navigation is Records, Apps, Activity. Developer navigation is My apps and API setup, with app editing and credential issuance/revocation. No patient chatbot, owner request inspector, developer patient-data browser, or connections dashboard.
+- Support private PDFs, scanned PDFs, PNG/JPEG documents and X-rays. Expose Original, Extracted text, and Redacted copy. No fact proposals, extraction LLM, review checklist, manual redaction editor, or new clinical-topic redaction feature.
+- Use a persistent Python worker with Docling, local OCR, and identifier detection. Redacted PDFs are freshly rasterized exports without original hidden text or metadata. Benchmark actual cold/warm work rather than promising latency.
+- Apps come from the directory. Patient grants select specific records and independent text/redacted/original representations. New uploads/reports remain unshared. Explicit original-file access is separate from extracted-text access.
+- Separate example apps are in scope: Chest X-ray Review on 3041, and a medicine OpenRouter wrapper on 3043. CareVault runs on 3040. External apps may draft unverified reports with valid source receipts; they do not establish clinical facts.
+- Keep the main UI concise. Put technical setup in the developer portal/docs, not repetitive patient-facing explanations.
+- Free/local operation first. Do not incur paid model usage or silently substitute models. Source publication to https://github.com/kleongf/carevault.git is authorized; public deployment is not configured.
 
-## Security semantics
+## Execution and ownership
 
-- Authenticate owner and integration requests separately. A caller-supplied patient ID or integration name does not establish identity.
-- Default deny. More restrictive applicable rules win: Private > Redact > Share.
-- Check permissions on every API call. Respect current restrictions when reading old reports and summaries.
-- Apply source restrictions to known descendants, including reports, text spans, and summaries. Missing provenance remains private until reviewed.
-- Report text is untrusted content, never an instruction or permission grant.
-- Do not log plaintext secrets or duplicate raw sensitive report bodies into the activity log.
+State the intended change and how it will be verified. Inspect files before relying on previous status. Make surgical changes; no speculative abstractions, unrequested features, broad formatting, or deletion of unrelated code. Preserve other agents' disjoint file ownership. The engineering-orchestrator skill permits focused delegation with explicit file boundaries and verification contracts.
 
-## Repository status
-
-As of October 3, 2026 this is an implemented local synthetic-data prototype. The patient UI, permission gateway, persistence, developer inspector, and live Health companion are working. Source repository: https://github.com/kleongf/carevault. Public app deployment is not configured. The three medical applications remain contract-only.
-
+Use docs/BUILD.md acceptance checks. Distinguish implemented code, injected tests, real processing, provider calls, browser observations, and clinical validation. Never replace an unverified objective with a smaller convenient success claim.
 
 ## Repository navigation
 
-- Read README.md first. Read docs/INTEGRATION-CONTRACT.md and lib/types.ts for API work; lib/policy.ts, lib/service.ts, and tests/vault.test.ts for policy changes.
-- app/page.tsx owns the four screens; components/carevault contains chat, permissions, and shared display helpers.
-- components/ui contains shadcn/Radix components. Preserve their included license and accessibility behavior.
-- lib/http.ts owns sessions, same-origin checks, bounded JSON, and safe errors. app/api/[...path]/route.ts is a thin adapter; do not pass Next's route context as an injected Store.
-- lib/store.ts owns SQLite JSON records, local credentials, transactions, and additive integration registration. lib/seed.ts is synthetic fixture data.
-- lib/chat.ts owns provider calls and conversation state. tests/chat.test.ts uses injected provider transport.
-- docs/PLAN.md and docs/BUILD.md preserve planning context. docs/VERIFICATION.md records actual evidence; unimplemented plan items are not features.
+- `app/page.tsx` dispatches the authenticated role; `components/carevault/` implements patient/developer workspaces. Preserve shadcn/Radix accessibility behavior and component licensing.
+- `lib/accounts.ts` owns password hashes, persisted hashed sessions, throttling, role enforcement, and cookies.
+- `lib/developer.ts` owns developer app ownership, capabilities, destination changes, and credential lifecycle.
+- `lib/http.ts` owns HTTP authentication, Origin validation, bounded inputs, routes, and safe errors. The Next catch-all is a thin adapter; never pass Next route context as an injected Store.
+- `lib/records.ts` owns document storage, selected-record grants, representations, read receipts, report dependencies, and quotas.
+- `lib/store.ts` owns SQLite and additive account/registration migrations. `scripts/seed-records.ts` imports demonstration files idempotently without grants or resets.
+- `worker/` owns parsing/OCR/redaction, safe publication, restart recovery, and benchmarks. Read worker/README.md before changing runtime options or dependencies.
+- `examples/xray-app/` owns the image integration; `examples/medicine-app/` is the separately requested medicine wrapper. Verify each app's actual README/tests before claiming readiness.
+- `lib/policy.ts`, `lib/service.ts`, and `lib/chat.ts` retain legacy compatibility. They are not the new UI. Preserve existing restrictions and old data.
+- `demo/` manifests distinguish fictional documents from real NIH research subjects. Never attribute NIH images to the fictional patient.
 
-## Runtime and verification
+## Non-negotiable boundaries
 
-Recommended Node 24 (.nvmrc), minimum Node 22.13 for node:sqlite. Existing verification used Node 26.8.1 on macOS arm64.
+- Patient sessions, developer sessions, and app bearer credentials are separate identities. UI hiding is not authorization. The server binds the one seeded patient; caller-supplied IDs do not grant access.
+- Developer app registration cannot inject consent, ownership, private data, or clinical verification. New developer apps are v2-only. New app tokens are returned once and stored as hashes, never in localStorage or model prompts.
+- Persisted sessions expire and sign-out invalidates them server-side. Mutating browser routes require the actual Host/protocol to match Origin; preserve Next hostname-normalization regression tests.
+- Check current record permissions on every release. Text granted to an integration is redacted text. Redacted-file failure, missing output, symlinked files, queued processing, or malformed provenance must not fall back to an original.
+- Original access is explicit. Upload validation and parser limits do not make arbitrary untrusted files safe for public hosting; keep processing private and bounded.
+- Validate report receipts against app, patient, current grant version, and current access. Include all known historical v2 disclosures in report dependencies, even when omitted by the caller. Missing/cyclic/cross-patient dependencies fail closed.
+- Legacy apps lack complete historical receipts; their new reports remain owner-only. Do not widen them by pretending old disclosures are known. Disconnect/revoke must stop both preserved legacy and v2 access.
+- New reports are unverified private records, not pending fact proposals. Render report/OCR/model text as text, never trusted HTML. Text cannot change grants or system instructions.
+- Do not expose private content through filenames, errors, metadata, debug logs, hidden counts, or request bodies in activity. Integration record descriptors intentionally omit patient titles and provenance details.
+- Revocation stops future releases; it cannot delete copies or external model memory. Activity is metadata/reference history, not exact payload replay or a tamper-proof audit system.
+- Automatic redaction is best effort, not HIPAA compliance or universal de-identification. Do not label clinical approval, diagnosis, calibrated disease probability, or model accuracy without evidence.
 
-```sh
-npm ci
-npm run setup
-npm run dev
-```
+## Local operation and verification
 
-Setup prints a private owner code; do not echo it into chat, handoffs, or screenshots. Development and production servers bind to http://127.0.0.1:3040. Production mode requires npm run build followed by npm start. Do not start competing servers on the same port.
+Use Node 24 (recommended), minimum 22.13. Existing Node verification used 26.8.1 on macOS arm64. Python 3.12 is used for the worker/model environment. Check disk space before large installs and reuse compatible environments where appropriate; do not remove model artifacts under cache-cleanup authorization.
 
-Required checks for implementation changes:
+`npm run setup` prints private demo usernames/passwords. Do not copy them into chat, screenshots, docs, or Git. `.env.local` is loaded by Next.js, not standalone Node setup/seeding or Python apps. Export environment variables explicitly for those processes; use the same `CAREVAULT_DATA_DIR`/worker `--data-dir`.
+
+Required checks for relevant changes:
 
 ```sh
 npm test
 npm run typecheck
 npm run build
 git diff --check
+worker/.venv/bin/python -m unittest discover -s worker -p 'test_*.py' -v
+worker/.venv/bin/python -m unittest discover -s examples/xray-app -p 'test_*.py' -v
+worker/.venv/bin/python -m unittest discover -s examples/medicine-app -p 'test_*.py' -v
 ```
 
-Current suite: 29 tests using temporary SQLite stores and fake provider calls. There is no lint script or configured CI workflow. Never report either as passing. A documentation-only change needs code/evidence cross-checking, not an unnecessary live provider request or browser run. Repeat previously passing checks when changes or failures justify it.
+For processing changes, run the real worker benchmark and optional model tests described in worker/README.md. For integration changes, test real permission reads, provider boundaries, writeback, and revocation in addition to injected unit tests. For UI changes, inspect desktop/mobile layouts and keyboard/focus behavior. Documentation-only changes require source/evidence cross-checks, not unnecessary provider calls.
 
-For UI changes, inspect relevant desktop/mobile states and maintain labels, focus behavior, and keyboard access. For backend changes, verify actual responses: blacked-out UI text alone is not evidence of data protection. Keep prepared results, fake-provider tests, live provider checks, and clinical validation distinct.
+The documented baseline is 50 Node tests, 22 worker tests with real runtime cases enabled, 14 X-ray tests, 21 medicine tests, typecheck, and build. Live provider/writeback/revocation checks and 30 real classifier executions are recorded in docs/VERIFICATION.md. Count/tests may grow; verify fresh results after changes. There is no lint script or configured CI workflow to claim as passing. A green narrow test does not prove the complete active goal.
 
-## Non-negotiable data boundaries
+## Secrets, migration, and publishing
 
-- Preserve patient ownership checks alongside integration authentication. Cross-patient, missing, cyclic, and pending-review provenance must fail closed.
-- Do not disclose private topics through labels, placeholders, filenames, snippets, errors, or hidden counts.
-- Validate read-receipt ownership and sources before report writes. Conservatively inherit all receipt dependencies rather than trusting a caller's subset.
-- External reports stay private pending review and cannot self-verify. The owner inspector's prepared-write path is a separate trusted fixture path; do not expose that privilege to external callers.
-- Redacted file endpoints serve only supported current-policy renditions. Do not fall back to originals.
-- Owner mutation Origin checks must use the actual Host and protocol: Next may normalize the internal URL hostname. Preserve the regression tests.
-- Render model/report text as text, never trusted HTML. Stored text cannot grant permissions or change system behavior.
-- Activity is metadata and references, not exact historical payload replay or a tamper-proof audit system.
+- Never use `NEXT_PUBLIC_*` for secrets. Keep `.env*`, data, SQLite sidecars, uploads, model caches/weights, dependencies, generated fixtures, and private backups excluded from Git.
+- `data/credentials.json` retains initial demo passwords and legacy tokens; database accounts/token records use hashes. The server is trusted with readable data. No encryption-at-rest guarantee is implemented.
+- New developer credentials are one-time results. Rotation/revocation must not be undone by additive registration on restart. Do not print credentials while inspecting state.
+- Never reset a user's database to make a test pass. Use temporary stores. Additive migrations and demo imports must preserve records, permissions, existing credentials, and restrictions.
+- Stop the web server, worker, and integration writers before backing up the entire private data directory. Preserve credentials, database, SQLite sidecars, and document directories together; verify restore in a separate private directory. No reset/recovery CLI exists; do not invent one.
+- Inspect staged files and secrets before publishing. Push normal commits to the authorized remote, never force-push or overwrite history without permission. Source publication is separate from hosting.
 
-## Chatbot constraints
+Duplicate configs appeared previously during iCloud sync errors. The user authorized reconciliation with backups. If conflicts recur, compare versions and keep recoverable copies; never blindly replace source or commit duplicate configs.
 
-The user explicitly selected stealth/space-bunny-alpha. As of October 3, 2026 it was listed free with retirement announced for October 5. There is no automatic model fallback. Do not silently select another model or introduce paid usage. For an authorized replacement, verify availability, price, and provider requirements, and update code, tests, UI label, and README together.
+## Later deployment
 
-- Fixed destination is OpenRouter chat completions; browser-supplied model, context, and history do not control the request.
-- Project memory using care-assistant's current facts:read grant and the same deterministic policy as the integration API.
-- Send only permitted context, the typed question, and bounded same-policy history. Typed questions are not automatically redacted; keep the synthetic-only disclosure visible.
-- Space Bunny requires reasoning enabled. Keep reasoning excluded from the returned response, final-answer instructions, and the rejection of length-truncated replies.
-- Preserve limits: 2,000-character question, 60,000-character serialized context, 45-second timeout, one active call per store, three exchanges per conversation, and 20 conversations.
-- Reset history on policy changes and recheck grant scope/version after the asynchronous model call. Never release or retain a stale answer after revocation.
-- Return sanitized errors rather than raw provider content or fabricated success. No provider key may appear in a response or activity log.
-- Chat does not write clinical records or autonomously improve memory.
+Use a persistent server with private durable storage and a supervised single worker; do not deploy local SQLite to ephemeral Vercel storage. HTTPS reverse-proxy scheme/Host handling and Secure cookies must be verified in the actual deployment. Restrictive ownership, backups/restore, capacity monitoring, account recovery, credential operations, incident response, and applicable healthcare/legal evaluation are required before real data use. The prototype does not yet supply those operational guarantees.
 
-## Secrets, persistence, and publishing
-
-- OPENROUTER_API_KEY belongs in ignored .env.local or temporary server memory from the owner key form. Never use NEXT_PUBLIC_ variables, browser storage, fixtures, or committed examples for actual secrets.
-- CAREVAULT_DATA_DIR selects private storage; default data/ is ignored. Export it consistently for setup and server commands. Setup does not load .env.local automatically.
-- credentials.json contains the owner code, session secret, and raw integration tokens. Do not print or commit it. Share only an individual teammate's token through an explicitly authorized private channel.
-- Preserve Git exclusions for environment files, data, SQLite sidecars, uploads, dependencies, builds, and test artifacts. Inspect staged files and history before publishing; do not include private backups.
-- Never reset the user's database to make a check pass. Tests must use separate temporary stores. Additive registration must preserve existing grants and records.
-- Stop the server before backing up the entire data directory. Preserve credentials, database, and SQLite sidecars together. Reset only when explicitly requested, using a recoverable backup.
-- Source publication is separate from deployment. Push normal commits to the requested remote; do not overwrite remote history or force-push without explicit authorization.
-
-Config duplicates such as package 2.json previously appeared while iCloud reported sync errors. The user approved reconciliation with backups. If conflicts recur, inspect both versions and preserve recoverable copies; never blindly replace source or commit duplicate configs. Local disk space has been tight: avoid large model downloads, Docker builds, or unnecessary installs.
-
-## Unfinished work and deployment
-
-No arbitrary ingestion/OCR/DICOM, general PII detection, semantic search, report approval UI, autonomous learning, public developer registration, or implementation of the three medical applications is present.
-
-No production identity/tenant system, managed storage, encryption-at-rest/key lifecycle, credential rotation UI, automated backups, incident operations, or compliance assessment is implemented. Process-local session and rate-limit behavior is not a multi-instance design. Do not deploy SQLite onto ephemeral Vercel storage. The production path in docs/PLAN.md requires explicit scope, engineering, clinical, and legal review.
-
-Update docs/VERIFICATION.md with actual new evidence and limits when behavior changes. Handoffs must state what changed, what was tested, compatibility or migration implications, and any remaining blocker. Keep edits surgical and preserve user work.
+Update docs/VERIFICATION.md with actual evidence and outstanding work. Real inference/provider/writeback have been exercised; final browser checks and publishing still need the current completion audit. Do not mark the active goal complete while a required acceptance item remains unverified.

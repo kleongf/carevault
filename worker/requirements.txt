@@ -1,0 +1,11 @@
+# Verified Python 3.12 environment; see README.md for setup and measured limitations.
+# Tesseract CLI + English tessdata are separate OS packages. No VLM or paid provider.
+docling-slim[format-pdf,convert-core,models-local]==2.133.0
+presidio-analyzer==2.2.364
+spacy==3.8.16
+en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+pillow==12.3.0
+pypdfium2==5.13.0
+pypdf==6.10.0
+reportlab==4.4.9
+numpy==2.4.6

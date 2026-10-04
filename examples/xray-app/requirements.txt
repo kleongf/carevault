@@ -1,0 +1,6 @@
+# Proposed Python 3.12 environment; no packages/weights installed during implementation.
+torchxrayvision==1.5.5
+torch==2.14.1
+torchvision==0.29.1
+numpy==2.4.6
+pillow==12.3.0

@@ -3,12 +3,14 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSy
 import { resolve } from 'node:path';
 import { createHash, randomBytes } from 'node:crypto';
 import { integrations, memories, sources } from './seed.ts';
+import { initializeAccounts } from './accounts.ts';
 
-export interface Credentials { ownerCode: string; sessionSecret: string; integrationTokens: Record<string, string>; }
+export interface Credentials { ownerCode: string; sessionSecret: string; integrationTokens: Record<string, string>; demoAccounts?: Record<'patient' | 'developer', { username: string; password: string }>; }
 export function digest(value: string) { return createHash('sha256').update(value).digest('hex'); }
 export class Store {
-  db: DatabaseSync; credentials: Credentials;
+  db: DatabaseSync; credentials: Credentials; directory: string;
   constructor(directory = process.env.CAREVAULT_DATA_DIR || resolve(process.cwd(), 'data')) {
+    this.directory = resolve(directory);
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     chmodSync(directory, 0o700);
     const credentialsPath = resolve(directory, 'credentials.json');
@@ -33,6 +35,10 @@ export class Store {
     });
     // Add newly shipped demo registrations without resetting existing grants or patient records.
     let credentialsChanged = false;
+    if (!this.credentials.demoAccounts) {
+      this.credentials.demoAccounts = { patient: { username: 'patient', password: randomBytes(18).toString('base64url') }, developer: { username: 'developer', password: randomBytes(18).toString('base64url') } };
+      credentialsChanged = true;
+    }
     for (const integration of integrations()) {
       if (!this.credentials.integrationTokens[integration.id]) {
         this.credentials.integrationTokens[integration.id] = randomBytes(32).toString('base64url');
@@ -44,10 +50,18 @@ export class Store {
       renameSync(`${credentialsPath}.tmp`, credentialsPath);
     }
     this.transaction(() => {
+      initializeAccounts(this);
       for (const integration of integrations()) {
         if (!this.get('integration', integration.id)) this.put('integration', integration.id, integration);
         if (!this.get('credential', integration.id)) this.put('credential', integration.id, { hash: digest(this.credentials.integrationTokens[integration.id]) });
       }
+    });
+    if (!this.get('meta', 'developer-ownership')) this.transaction(() => {
+      for (const integration of this.all<import('./types.ts').Integration>('integration')) {
+        integration.developerId = 'demo-developer';
+        this.put('integration', integration.id, integration);
+      }
+      this.put('meta', 'developer-ownership', { version: 1 });
     });
   }
   get<T>(kind: string, id: string): T | undefined {
@@ -58,6 +72,7 @@ export class Store {
   put(kind: string, id: string, body: unknown): void {
     this.db.prepare('INSERT INTO records(kind,id,body) VALUES(?,?,?) ON CONFLICT(kind,id) DO UPDATE SET body=excluded.body').run(kind, id, JSON.stringify(body));
   }
+  remove(kind: string, id: string) { this.db.prepare('DELETE FROM records WHERE kind=? AND id=?').run(kind, id); }
   transaction<T>(fn: () => T): T {
     this.db.exec('BEGIN IMMEDIATE');
     try { const result = fn(); this.db.exec('COMMIT'); return result; }

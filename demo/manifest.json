@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "patientId": "patient-demo-001",
+  "provenance": "Generated fictional respiratory-care documents for Alex Morgan. Not real clinical records. Values are illustrative, not medical advice. The scanned PDF and photo are variants of the same intake, not additional encounters. No NIH image is contained in these generated files.",
+  "records": [
+    { "filename": "respiratory-intake.pdf", "title": "Respiratory intake (fictional)", "mime": "application/pdf", "profile": "identifiers", "provenance": "CareVault generated fictional intake dated 2026-09-29; native text PDF." },
+    { "filename": "respiratory-visit.pdf", "title": "Respiratory visit note (fictional)", "mime": "application/pdf", "profile": "identifiers", "provenance": "CareVault generated fictional encounter dated 2026-09-29; native text PDF; observations invented for software demonstration." },
+    { "filename": "respiratory-labs.pdf", "title": "Illustrative laboratory report (fictional)", "mime": "application/pdf", "profile": "identifiers", "provenance": "CareVault generated fictional laboratory table dated 2026-09-30; no measured values or clinical interpretation." },
+    { "filename": "respiratory-intake-scanned.pdf", "title": "Scanned intake (fictional variant)", "mime": "application/pdf", "profile": "identifiers", "provenance": "Raster-only rendering of respiratory-intake.pdf; same fictional encounter; intended for OCR testing." },
+    { "filename": "respiratory-intake-photo.jpg", "title": "Intake photo (fictional variant)", "mime": "image/jpeg", "profile": "identifiers", "provenance": "Rendered, slightly rotated image of respiratory-intake.pdf; simulated document photo, not a camera capture or medical image." }
+  ]
+}

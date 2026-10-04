@@ -1,77 +1,75 @@
-# 12-hour build board
+# Implementation and acceptance board
 
-Status: the core application is implemented. Backend tests, type checking, and the production build pass. See VERIFICATION.md for the completed checks. The time boxes below remain a suggested team schedule, not a record of hours spent.
+The current target is the approved record-based CareVault redesign plus separate X-ray and medicine example apps. The old 12-hour/chat/owner-inspector plan is superseded. Code is in progress; [VERIFICATION.md](VERIFICATION.md) records completed checks.
 
-## Success criterion
+## Build sequence
 
-A patient connects a fixture integration, chooses Share/Redact/Private settings, sees an actual authorized API response, receives a persisted report through a scoped write endpoint, protects a source and its derived summary, and revokes access. A subsequent read is denied. No full medical integration needs to be built here.
-
-## Critical path
-
-| Time | Work | Evidence |
+| Step | Deliverable | Acceptance evidence |
 | --- | --- | --- |
-| 0–1 h | Scaffold Next.js/TypeScript, pin the runtime, create SQLite tables and synthetic fixtures, agree on the teammate API | Start the app and reload seeded memory |
-| 1–3 h | Implement actor separation, saved grants, policy projection, and context read endpoint | Direct API requests enforce scope and patient boundaries |
-| 3–6 h | Build integration hub, connection panel, owner preview, and My memory | Saved choices match actual API output |
-| 6–8 h | Implement report append endpoint, activity feed, source/summary dependencies, and revoke | Writes survive restart; private sources restrict descendants; next revoked request fails |
-| 8–10 h | Exercise identifier/topic/derived redaction, connect teammate clients or request fixtures, polish states | A, D, E live examples work without a live model |
-| 10–12 h | Run targeted checks, fix defects, rehearse and record backup demo; consider hosting only if everything passes | Repeatable end-to-end demonstration and honest feature labels |
+| 1 | Two seeded accounts, role sessions, developer app/credential lifecycle | Wrong-role denial, expiry/logout/restart tests, one-time token rotation/revocation |
+| 2 | Records/Apps/Activity patient UI and separate developer portal | Browser role separation, useful loading/errors, keyboard/dialog behavior, mobile layout |
+| 3 | Private PDF/PNG/JPEG ingestion and durable jobs | Real valid upload, malformed/oversized rejection, restart persistence, safe file paths |
+| 4 | Docling/OCR/identifier-redaction worker | Cold/warm benchmark, native/scanned/photo extraction, actual pixel/text/metadata export checks |
+| 5 | Selected-record representation grants | Independent text/redacted/original results; failed output never serves original; new records unshared |
+| 6 | Report receipts and dependencies | Current receipt validation, server authorship, unverified/private arrival, inherited source restrictions |
+| 7 | Fictional documents plus attributed NIH images | Reproducible generation, provenance/hashes, explicit additive import without consent changes |
+| 8 | Separate X-ray and medicine apps | Real configured inference/provider calls, fresh reads, report writeback, revoked access denial |
+| 9 | Documentation and source publication | Final checks, secret exclusions, accurate unfinished-work notes, normal authorized Git push |
 
-Freeze optional features by hour 8. Do not let a graph animation, OCR service, public marketplace, or deployment migration displace backend permission checks.
+## Required automated checks
 
-## Suggested ownership
+From the repository root, using a Python environment with the documented dependencies:
 
-- **Backend owner:** schema, credentials, grants, policy evaluator, scoped read/write/file endpoints.
-- **UI owner:** integration hub, permission drawer, memory inspection, activity states.
-- **Fixture/demo owner:** synthetic records, prepared extraction/source examples, dependency examples, request fixtures, test cases, narrative.
-- **Optional fourth person:** teammate integration coordination and verification; deployment only after the critical path works.
+```sh
+npm test
+npm run typecheck
+npm run build
+git diff --check
+worker/.venv/bin/python -m unittest discover -s worker -p 'test_*.py' -v
+worker/.venv/bin/python -m unittest discover -s examples/xray-app -p 'test_*.py' -v
+worker/.venv/bin/python -m unittest discover -s examples/medicine-app -p 'test_*.py' -v
+```
 
-The team can own other integrations elsewhere. Do not create those application implementations in this repository without a new scope decision.
+No lint script or CI workflow is configured. Tests that inject classifier/provider/parser outputs prove boundaries, not actual model execution.
 
-## Minimal fixtures
+For worker/runtime changes, also use:
 
-- One primary synthetic patient and a second patient for access-isolation tests.
-- Four integration registrations (including Health companion), each with a distinct secret and grant.
-- 15–25 memory items spanning demographics, symptoms, medications, allergies, preferences, and a protected topic.
-- One original note with prepared identifier spans; one protected-topic fact; one derived summary with an explicit dependency.
-- Source cards for structured data, a PDF, a scanned page, and an image. Clearly label prepared extraction.
-- One prepared report body for exercising the write contract. Do not describe it as a live medical model result.
-- Expected allowed, redacted, and private outputs for each grant configuration.
+```sh
+worker/.venv/bin/python worker/benchmark.py --generate
+worker/.venv/bin/python worker/benchmark.py
+CAREVAULT_RUN_MODEL_TESTS=1 worker/.venv/bin/python -m unittest discover -s worker -p 'test_*.py' -v
+```
 
-## Acceptance checks
+Follow each example app's README for real model/provider verification. Use free providers only; a failed live call must not be replaced with a fabricated successful result.
 
-1. **Connection persistence:** refresh/restart retains grant settings.
-2. **Identifier redaction:** protected values are absent from the actual integration response, including source metadata. A placeholder appears only where existence disclosure is permitted.
-3. **Topic privacy:** a Private topic produces no topic-specific placeholder, filename, or hidden count in the integration response.
-4. **Derived restrictions:** restricting a parent restricts a known child summary and persisted report on later reads.
-5. **No token spoofing:** a caller cannot claim another integration identity through request parameters.
-6. **Patient isolation:** changing the patient or source ID does not grant access to the second patient.
-7. **Operation separation:** fact-read permission does not authorize report writes or file downloads.
-8. **Saved writes:** a permitted report survives restart, retains source references and server-assigned authorship, and remains unverified.
-9. **Untrusted writes:** a report cannot edit permissions, execute markup, or promote its own verification status.
-10. **Revocation:** a subsequent request fails; historic disclosure receipts remain visible.
-11. **Unsupported processing:** an unprocessed upload or missing redacted rendition cannot fall back to sharing original content.
-12. **Preview parity:** owner preview and live read use the same policy function and agree for the same policy version.
+## Live acceptance checklist
 
-Use policy unit tests and route-level tests for these properties. A screenshot of blacked-out text is not evidence that the API protected it.
+Run against a separate synthetic validation vault where practical. Never reset the user's vault to get a clean test. If testing the actual demo vault, record any intentionally added records/grants and do not erase existing state.
+
+- [x] Patient and developer sign-in verified; wrong-role/session/logout/persistence behavior covered by API tests.
+- [x] Developer registration, edit fields, and API setup inspected in the browser. Credential issue/rotate/revoke and restart behavior covered by API tests.
+- [x] Browser credential modal inspected without exposing a token; credential lifecycle remains API-tested.
+- [x] All eight seeded PDF/scan/photo/NIH records processed. Second seeding run added zero. A real browser PDF upload reached ready.
+- [x] Original/extracted/redacted PDF tabs inspected, including PDF.js canvas previews. Actual export checks cover selected identifiers, pixels, text layers, and metadata.
+- [x] Patient NIH image preview/provenance and narrow-screen layout inspected.
+- [x] Independent representation grants, redacted text release, failed-rendition refusal, and new unshared records/reports covered by tests and live integration reads/writes.
+- [x] Thirty real X-ray adapter calls evaluated three original and worker-rendition pairs; model/checkpoint, outputs, timing, and limitations recorded.
+- [x] Both apps generated real free-model drafts, saved source-linked reports through v2, and reached processed/unshared state. Repeat save and post-revocation denial verified.
+- [x] Both app browser login, source/image preview, generation, and save worked with actual provider calls. They use in-page login rather than native browser auth prompts.
+- [x] Permission changes during async generation covered by injected boundary tests; live post-revocation denial passed. Do not conflate these two evidence types.
+- [x] Developer workspace at 390px had no horizontal overflow; role-separated navigation omits CareVault chat/inspector.
+- [x] Isolated restore/migration preserved 96 existing stored records. Real-vault demo import added eight records and two example-app grants limited to demo files without changing existing grants.
+- [x] Live stopped-worker test queued a valid scan and corrupt PDF; after restart they became ready/failed respectively. Valid redacted attachment succeeded and failed redacted read returned 409.
+- [x] Patient mobile, login error, dialog Escape, failed processing, page navigation, selected grants, and browser revocation checked.
+- [ ] Complete final secret/diff review and publish normal commits to the authorized GitHub remote.
 
 ## Five-minute demonstration
 
-1. **0:00–0:40:** show the integration hub and synthetic patient. Explain the trusted vault boundary.
-2. **0:40–1:30:** connect a fixture integration; permit useful categories, redact identity, and protect a clinical topic.
-3. **1:30–2:20:** run a real scoped request in the inspector or teammate client; show the returned payload and activity receipt.
-4. **2:20–3:10:** submit a prepared report through the actual report endpoint; show authorship and persistence in My memory.
-5. **3:10–4:00:** protect a source and repeat retrieval; its dependent summary/report is also restricted.
-6. **4:00–4:35:** revoke the integration and show the next request denied. Historical disclosures remain recorded.
-7. **4:35–5:00:** show three track integration slots and explain how teammates connect to the shared API. Distinguish prepared examples, live behavior, and the production roadmap.
+1. Patient opens an uploaded fictional PDF, extracted text, and the actual redacted export.
+2. Developer briefly shows app registration and API setup; no secret is shown in a shared screen.
+3. Patient connects the separate X-ray app and selects one attributed image with explicit file access and report permission.
+4. X-ray app classifies it, drafts an unverified report, and saves it back. CareVault displays the report as a new unshared record.
+5. Optionally use the medicine app with selected redacted document text to demonstrate a different integration.
+6. Patient revokes access; the integration's next request fails. Explain that previously copied data cannot be recalled.
 
-## Vercel stretch decision
-
-Only pursue deployment if the main demo passes and a persistent hosted database is available. A local SQLite file or in-memory store is not an acceptable substitute for durable cloud writes. Avoid a second storage implementation solely to claim deployment.
-
-## Implementation handoff notes
-
-- The Next.js application and SQLite gateway are implemented. Run the README setup instructions, then connect teammate applications using INTEGRATION-CONTRACT.md.
-- Disk space was audited and reproducible caches/dependencies were removed with user authorization. Available space remains tight; avoid large model downloads or Docker builds.
-- Use the existing API key through a local environment variable only if a model call is needed; never request that it be pasted into chat or committed.
-- GitHub source repository: https://github.com/kleongf/carevault. Public app deployment is not configured.
+Only rehearse this as a live demonstration after every dependent step is verified. Keep a clearly labeled recording/prepared artifact if needed; do not misrepresent it as a current live result.

@@ -8,6 +8,7 @@
   },
   "scripts": {
     "setup": "node --experimental-strip-types scripts/setup.ts",
+    "demo:seed": "node --experimental-strip-types scripts/seed-records.ts",
     "dev": "next dev --hostname 127.0.0.1 --port 3040",
     "build": "next build --webpack",
     "start": "next start --hostname 127.0.0.1 --port 3040",
@@ -24,6 +25,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
     "next": "16.3.8",
+    "pdfjs-dist": "6.4.299",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "tailwind-merge": "^3.7.0",

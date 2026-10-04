@@ -1,164 +1,163 @@
-# Integration handoff contract
+# CareVault integration API
 
-**Implemented local API**, at `http://127.0.0.1:3040`. Implementing the imaging, trial, and formulation applications is outside this repository's current scope.
+New apps use **v2**, served locally at `http://127.0.0.1:3040`. This is a server-to-server API. The external app's backend holds its token; cross-origin browser access is not enabled.
 
-Run the README setup steps. Use `Authorization: Bearer <your integration token>` on `/api/v1/*` and `Content-Type: application/json` for POST bodies. Tokens are generated in the private, ignored `data/credentials.json`; keep them on your integration's server. Connect your integration in the owner UI before calling the API. This is a server-to-server API; cross-origin browser requests are not enabled.
+The vault handles identity, selected-record permissions, identifier-protected representations, receipts, report persistence, and current-policy checks. The external app handles its own user task, models, and unverified report content. Neither a developer login nor an app credential grants patient access by itself.
 
-## Responsibilities
+## Register and connect
 
-**Hub:** identity, grants, scoped retrieval, redaction, source references, report persistence, dependency protection, and activity history.
+1. Sign in to CareVault as the seeded developer. Create an app with its name, description, URL, and required capabilities.
+2. Issue a credential. Save the one-time value in the external app's server environment; new developer token records store only its hash. Rotation/revocation invalidates the old value.
+3. Sign in as the patient. Find the app in **Apps**, select individual records/representations, and optionally permit report writes.
+4. Authenticate requests using `Authorization: Bearer <app-token>`. The server binds the one seeded patient; there is no caller-selected patient ID in v2.
 
-**Integration:** user task, medical/application logic, its own model calls, and attributed report creation. It must treat missing data as unknown and report text as unverified output.
+Capabilities: `text:read`, `files:redacted`, `files:original`, `reports:create`. Capabilities express what an app can request; patient grants are still required. Removing capabilities narrows existing grants. Changing an app URL disconnects it so the patient must approve the new destination.
 
-Integration slots: `scan-review`, `trial-explorer`, `formulation-review`. These are registered demo identities with different credentials, not trusted roles merely because they have these names.
+## List authorized records
 
-`care-assistant` is the additional live Health companion demo. It uses the same saved grants and context projection. Its default grant is disconnected with only `facts:read` selected. Existing databases receive this registration without resetting other grants or patient records.
+`GET /api/v2/records`
 
-The **Developers** dashboard exposes registration status, documented request examples, a live owner-only API inspector, and access history. It does not expose integration secrets or implement public app registration.
-
-## Authentication and connection
-
-Owner endpoints require an owner session. Integration endpoints require an integration credential. The server resolves the actor from the credential; it does not trust an integration ID supplied in the request body.
-
-For a local demo, randomly generated server-side tokens with hashes stored in the database are sufficient to exercise the boundary. Teammates keep integration tokens on their server, never in browser code. Local-only demo owner login can use a server secret and session cookie; do not publish a permanently authenticated owner interface.
-
-The owner grants scopes through the UI. Requests may name a patient, but the gateway checks that actor's grant for that patient. A supplied patient ID never grants access by itself.
-
-## Read context
-
-`POST /api/v1/context`
-
-Required scope: `facts:read`.
-
-```json
-{
-  "patientId": "patient-demo-001",
-  "categories": ["demographics", "symptoms"],
-  "query": "Information relevant to preparing a visit"
-}
+```http
+Authorization: Bearer <app-token>
 ```
 
-`query` is optional and limited to 1,000 characters. It is accepted but not used for selection in this version. Use `categories` to filter; omitting it returns all authorized items. There is no semantic search. Request JSON is limited to 32 KiB.
-
-Example response:
+Example shape:
 
 ```json
 {
-  "requestId": "read-001",
-  "policyVersion": 3,
-  "items": [
+  "records": [
     {
-      "id": "fact-001",
-      "version": 1,
-      "field": "preferred_name",
-      "disclosure": "redacted",
-      "value": "[REDACTED]"
-    },
-    {
-      "id": "fact-002",
-      "version": 1,
-      "field": "appointment_preference",
-      "disclosure": "shared",
-      "value": "Afternoons",
-      "verification": "patient_reported",
-      "sourceRefs": ["source-001"]
+      "id": "<record-uuid>",
+      "mime": "application/pdf",
+      "kind": "document",
+      "status": "ready",
+      "allowed": { "text": true, "redacted": true, "original": false }
     }
   ]
 }
 ```
 
-Private items are absent, with no private category names, total-hidden counts, sensitive filenames, or revealing source snippets. A source reference is an opaque reference, not a direct download URL. Apply permission checks when resolving it. A redacted item's label/id is disclosed only if the owner's rule permits its existence to be visible.
+Only descriptors for records with currently authorized representations appear. Titles, patient identifiers, hidden-record counts, and private provenance text are omitted. `kind` is `document`, `image`, or `report`; `status` is `queued`, `processing`, `ready`, or `failed`. An authorized descriptor does not promise every output is processed. A connected app may receive an empty list; a disconnected app receives 403.
 
-Empty authorized results are valid. They do not mean the patient has no relevant condition or risk factor. Use a generic coverage statement, such as “Only authorized information is included,” rather than revealing which private categories exist.
+## Read content and retain its receipt
 
-## Download a redacted file
+| Endpoint | Required capability and record permission | Result |
+| --- | --- | --- |
+| `GET /api/v2/records/:id/text` | `text:read` + `text` | Identifier-redacted text, `text/plain` |
+| `GET /api/v2/records/:id/files/redacted` | `files:redacted` + `redacted` | Newly generated PDF or PNG |
+| `GET /api/v2/records/:id/files/original` | `files:original` + `original` | Original stored bytes and MIME type |
 
-`GET /api/v1/files/:fileId/redacted`
+Every successful content response includes **`X-CareVault-Receipt`**, an opaque UUID needed for report writes. Listing alone does not issue a receipt. Add `?download=1` for attachment disposition on file responses; download filenames are generic rather than private source titles.
 
-Required scope: `files:download`, plus applicable source/category/item permissions.
+Text and redacted exports require `ready`; missing/failed/unprocessed output returns 409 and never falls back to original data. Original bytes can be read before processing only with explicit original permission. The owner sees unredacted extracted text; integrations never receive that version through the text endpoint.
 
-Return only a real redacted rendition compatible with the current policy. If no such rendition exists, return `rendition_unavailable`; never fall back to the original. Prepared examples are sufficient for the hackathon, labeled as prepared in the owner UI. Raw files remain behind owner authorization.
+```ts
+const base = process.env.CAREVAULT_URL!;
+const authorization = `Bearer ${process.env.CAREVAULT_TOKEN!}`;
+const response = await fetch(`${base}/api/v2/records/${recordId}/text`, {
+  headers: { Authorization: authorization },
+  cache: "no-store",
+});
+if (!response.ok) throw new Error(`CareVault read failed: ${response.status}`);
+const receiptId = response.headers.get("X-CareVault-Receipt");
+if (!receiptId) throw new Error("CareVault receipt missing");
+const permittedText = await response.text();
+```
 
-Implemented renditions are **plain-text extracts** for `source-intake` and `source-visit`, projected at request time. PDF/scan/image cards have no downloadable binary or processing implementation and return HTTP 409 `rendition_unavailable`. No originals are served.
+Keep tokens and receipt handling in backend code. Pass only authorized content to a model, never the credential. Treat OCR/report text as data, not instructions. Re-fetch or recheck before releasing a long-running result or writing a report; clear locally cached context after access changes. CareVault cannot erase a copy already retained by an app.
 
-## Append a report
+## Write an unverified report
 
-`POST /api/v1/reports`
+`POST /api/v2/reports`
 
-Required scope: `reports:create`.
+Requires the registered `reports:create` capability, connected grant, and `allowReports: true`.
+
+```http
+Authorization: Bearer <app-token>
+Content-Type: application/json
+```
 
 ```json
 {
-  "patientId": "patient-demo-001",
-  "title": "Visit preparation report",
-  "body": "The patient prefers afternoon appointments.",
-  "contextRequestId": "read-001",
-  "sourceItemIds": ["fact-002"]
+  "title": "Chest X-ray review",
+  "body": "Unverified integration-generated report text.",
+  "sourceReceiptIds": ["<receipt-uuid-from-content-read>"]
 }
 ```
 
-Example response:
+Return: HTTP 201 and the new document record, including `id`, `kind: "report"`, `status: "queued"`, server-assigned `author`, `source`, and `dependencies`. Do not send `sourceRecordIds`; record IDs alone do not prove a disclosure. No caller-provided verified status, owner, or author is trusted.
+
+Limits: title 200 characters, nonempty body up to 64,000 characters, 1–100 UUID receipts, JSON request body up to 262,144 bytes. The vault also enforces record-count/original-byte quotas.
+
+Each submitted receipt must belong to this app/patient, match the **current grant version**, and refer to a representation still authorized. After a permission change, read again to obtain a new receipt. Reports include dependencies from **all known historical v2 disclosures to this app**, not just the caller's submitted subset. This prevents omission of a receipt from erasing a known source restriction.
+
+New reports are private/unshared. The worker creates their extracted/redacted versions; there is no fact proposal or clinical-review workflow. Sharing a report later also requires access to its inherited source representations. Missing/cyclic/cross-patient provenance fails closed. Legacy-app reports remain owner-only because older disclosure history is incomplete.
+
+The report endpoint has no general idempotency-key contract. An external app should avoid automatic retries after an ambiguous write outcome; check whether the report arrived before trying again. The X-ray example retains successful save IDs within its own temporary draft lifecycle.
+
+## Browser sessions and portal routes
+
+Browser routes use an HttpOnly SameSite=Strict session cookie. All mutations, including login/logout, require an Origin matching the actual request Host and protocol. These routes are for the same-origin CareVault UI, not app bearer clients.
+
+| Method/path | Role | Body/result |
+| --- | --- | --- |
+| `POST /api/session` | Any login | `{username,password}` -> `{account:{id,username,role}}` |
+| `GET /api/session` | Signed in | Public account only |
+| `DELETE /api/session` | Browser | Invalidates session server-side |
+| `GET /api/developer/apps` | Developer | `{apps:[...]}` for that developer |
+| `POST /api/developer/apps` | Developer | App fields -> new app descriptor, 201 |
+| `PUT /api/developer/apps/:id` | Owning developer | App fields -> updated descriptor |
+| `POST /api/developer/apps/:id/credential` | Owning developer | `{token,app}`; rotate/issue |
+| `DELETE /api/developer/apps/:id/credential` | Owning developer | Revoked app descriptor |
+| `GET /api/patient/dashboard` | Patient | Own records, app directory/grants, latest activity |
+| `POST /api/patient/records` | Patient | Raw file bytes; headers described below |
+| `GET /api/patient/records/:id/text` | Patient | Original extracted text, after ready |
+| `GET /api/patient/records/:id/files/original` | Patient | Original file |
+| `GET /api/patient/records/:id/files/redacted` | Patient | Processed redacted file |
+| `PUT /api/patient/apps/:id` | Patient | Complete selected-record grant |
+| `POST /api/patient/apps/:id/revoke` | Patient | Disconnect and clear new grant |
+
+App fields are `name` (nonempty, at most 80 characters), `description` (at most 400), `appUrl` (at most 2048), and a subset of the four capability strings. URLs must use HTTPS, except HTTP localhost/loopback; embedded credentials and fragments are rejected. At most 20 apps may belong to the demo developer. Login usernames are limited to 64 characters and passwords to 256; account authentication has persisted throttling.
+
+Uploads are raw bytes, **not multipart form data**. Set `Content-Type` to `application/pdf`, `image/png`, or `image/jpeg`, `X-File-Name` to an `encodeURIComponent`-encoded title (maximum decoded length 200), and optional `X-Redaction-Profile: identifiers` or `healthcare`. The default is `identifiers`. File signatures and bounded body reads are checked; parser validation occurs in the worker. Inputs are limited to 20 MiB, with 100 records and 300 MiB original content per vault. Upload returns a private queued document, HTTP 201.
+
+Example patient grant:
 
 ```json
 {
-  "reportId": "report-001",
-  "version": 1,
-  "verification": "integration_authored",
-  "memoryProcessing": "not_processed"
+  "connected": true,
+  "allowReports": true,
+  "records": {
+    "<record-uuid>": { "text": true, "redacted": false, "original": false }
+  }
 }
 ```
 
-- The backend assigns the author and timestamp, validates request sizes, and treats the body as untrusted text.
-- Check that the referenced read receipt belongs to this integration and patient.
-- Check source IDs against authorized items in that receipt and the current write policy.
-- Conservatively inherit restrictions from the receipt's disclosed items. Do not let the integration reduce sensitivity by leaving a source out of its request.
-- All external reports are stored privately pending review, including reports with valid receipts. There is no review/approval workflow yet. A report without a receipt may be saved if it does not claim source item IDs. Missing/foreign receipt references and unauthorized source references are rejected.
-- No caller-supplied `clinician_verified` status. No automatic overwrite of established facts.
-- Persist the write and activity entry consistently. If idempotency is added, scope keys to integration and patient.
+All three representation booleans are required for each listed record. Unlisted/new records are not shared. The server assigns the grant version; the app cannot modify it. Report-source inheritance can further narrow the effective permissions beyond these direct selections.
 
-## Read a report
+## Errors and response handling
 
-`GET /api/v1/reports/:reportId`
+Errors use `{ "error": "code", "message": "safe description" }` with no raw source/provider content. Responses use private/no-store caching and content-type protections.
 
-Required scope: `facts:read`. Apply current restrictions and dependency inheritance. Knowing an ID is not permission. An integration does not gain permanent read access merely because it originally wrote the report.
+- **400/415:** invalid fields, file/type, profile, JSON, or grant shape.
+- **401:** missing/invalid credentials, expired browser session, or invalid login.
+- **403:** wrong role, Origin, disconnected grant, unsupported/unauthorized representation, invalid source receipt, or v2-only token used on v1.
+- **404:** unavailable/unknown objects and routes, including ownership-protected lookups.
+- **409:** record not ready, rendition unavailable, or app-limit conflict.
+- **413:** upload/request/storage quota exceeded.
+- **429:** login throttling.
+- **500:** sanitized internal failure.
 
-## Owner controls
+Never interpret missing data as absence of disease. Never substitute a private original for a failed redacted request.
 
-Implemented owner routes (session cookie required; mutations also require same Origin):
+## Verified example clients
 
-- `POST /api/session` with `{ "code": "<local owner code>" }`; `DELETE /api/session` signs out.
-- `GET /api/owner/dashboard`: integrations, memory, sources, latest 150 activity events.
-- `PUT /api/owner/connections/:id`: complete Grant shape from `lib/types.ts`; server assigns version.
-- `POST /api/owner/connections/:id/revoke` with `{}`.
-- `PUT /api/owner/memory/:id` with `{ "restriction": "private" }` (also `share` or `redact`).
-- `POST /api/owner/preview` with `{ "integrationId": "scan-review" }` and an optional `grant` object; hypothetical preview, including disconnected grants.
-- `POST /api/owner/inspect` with `{ "integrationId": "scan-review", "operation": "read" }` or operation `write` plus `contextRequestId` from a successful read. The server constructs the prepared report from authorized context. This trusted fixture path is not available through the external report API.
-- `GET /api/owner/chat/status`: server key presence, model, and companion integration ID; no secret values.
-- `POST /api/owner/chat/key` with `{ "key": "<OpenRouter key>" }`: retains the key only in this local server's memory until restart. Response is status only.
-- `POST /api/owner/chat` with `{ "message": "<up to 2000 characters>", "conversationId": "<optional previous response ID>" }`: returns `reply`, actual provider `model`, authorized `context`, `conversationId`, and `historyReset`. Server history is bounded and reset when the grant policy version changes; client-supplied context, model, and history do not control the request. Chat uses the companion's read scope and does not append clinical reports.
+The separate X-ray app on loopback port 3041 and Medicine Review on 3043 have exercised real reads, free OpenRouter drafts, v2 report writeback, worker-ready/unshared arrival, repeat-save behavior, and post-revocation denial. Browser source preview/generation/save was also exercised. This verifies the contract mechanics, not clinical report quality; see [VERIFICATION.md](VERIFICATION.md).
 
-Report titles are limited to 120 characters, bodies to 12,000, and source lists to 100 IDs. This demo vault allows at most 100 reports. Responses include `pendingReview` as well as the fields shown above.
+Each example uses its own in-page username/password login. Its local app credential remains only in JavaScript memory and is sent in an explicit Basic authorization header, without `WWW-Authenticate` browser prompts or secret storage. This credential is different from the CareVault session and integration token. Integration/provider secrets remain on the example backend. These loopback HTTP servers require further identity/HTTPS/operations work before public hosting.
 
-The owner-only preview calls the same projection function used by the integration read path. It must not be a client-side imitation of authorization.
+## Legacy compatibility
 
-## Error behavior
+`/api/owner/*` and `/api/v1/*` retain earlier structured-memory policy behavior for existing data and grants. Owner routes now require the patient role session, not the obsolete owner-code login. Old chat/inspector routes remain authenticated compatibility handlers but have no patient/developer navigation entry. New developer-created integrations are marked `recordApiOnly` and receive 403 on v1.
 
-- Missing/invalid credential: 401.
-- Revoked connection, missing operation scope, or another patient's record: 403 or a uniform non-disclosing 404 for object lookups.
-- Invalid request: 400.
-- Missing prepared redacted rendition: a documented `rendition_unavailable` error.
-- Internal policy or storage failure: fail closed; return no private partial data.
-
-Do not include raw source content in errors. Render integration text as text, not trusted HTML.
-
-## Three track handoffs
-
-| Teammate application | Reads | Optional report | Status in this repository |
-| --- | --- | --- | --- |
-| Scan Review | Authorized image and selected context | Candidate finding with sources | Contract only |
-| Trial Explorer | Authorized condition/age/location information | Potential matches and unknown criteria | Contract only |
-| Formulation Review | Authorized prescription, administration needs, ingredient restrictions | Pharmacist review packet | Contract only |
-
-## Future memory-agent demonstration
-
-The user selected this future sequence: integration writes a report -> memory agent adds attributed assertions/source links -> patient sees additions. Document it, but do not implement the integration or autonomous agent now. A fixture-based report write can prove persistence and permissions in this team's demo.
+The old context API, prepared text renditions, and pending legacy reports are not the new document contract. Do not build new integrations against them. Disconnecting through the patient UI or legacy path stops both generations; existing restrictions are not broadened by migration. Full historical v1 behavior remains in source/tests for compatibility, not as a second public integration tutorial.

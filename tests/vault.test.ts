@@ -19,7 +19,7 @@ async function setup(t: TestContext) {
   t.after(() => { store.close(); rmSync(directory, { recursive: true, force: true }); });
   const login = await handleRequest(new Request(`${origin}/api/session`, {
     method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: store.credentials.ownerCode })
+    body: JSON.stringify(store.credentials.demoAccounts!.patient)
   }), store);
   assert.equal(login.status, 200);
   const cookie = login.headers.get('set-cookie')!.split(';')[0];
@@ -83,10 +83,10 @@ test('owner sessions and integration credentials cannot substitute for each othe
 test('owner mutations and login enforce Origin and reject tampered cookies', async t => {
   const f = await setup(t);
   await error(await f.request('/api/session', {
-    body: { code: f.store.credentials.ownerCode }, headers: { Origin: 'https://attacker.test' }
+    body: f.store.credentials.demoAccounts!.patient, headers: { Origin: 'https://attacker.test' }
   }), 403, 'origin_not_allowed');
-  await error(await f.request('/api/session', { body: { code: f.store.credentials.ownerCode } }), 403, 'origin_not_allowed');
-  await error(await f.request('/api/session', { body: { code: 'incorrect' }, headers: { Origin: origin } }), 401, 'invalid_access_code');
+  await error(await f.request('/api/session', { body: f.store.credentials.demoAccounts!.patient }), 403, 'origin_not_allowed');
+  await error(await f.request('/api/session', { body: { username: 'patient', password: 'incorrect' }, headers: { Origin: origin } }), 401, 'invalid_login');
   await error(await f.request(`/api/owner/connections/${integrationId}`, {
     method: 'PUT', owner: true, headers: { Origin: 'https://attacker.test' }, body: allShared()
   }), 403, 'origin_not_allowed');
@@ -98,9 +98,9 @@ test('browser login and owner mutations accept actual Host when Next normalizes 
   const f = await setup(t);
   // The browser uses 127.0.0.1, but Next presents localhost in Request.url.
   const headers = { Host: '127.0.0.1:3040', Origin: 'http://127.0.0.1:3040' };
-  const login = await f.request('/api/session', { body: { code: f.store.credentials.ownerCode }, headers });
+  const login = await f.request('/api/session', { body: f.store.credentials.demoAccounts!.patient, headers });
   assert.equal(login.status, 200, await login.clone().text());
-  assert.match(login.headers.get('set-cookie')!, /carevault_owner=/);
+  assert.match(login.headers.get('set-cookie')!, /carevault_session=/);
   const connection = await f.request(`/api/owner/connections/${integrationId}`, {
     method: 'PUT', owner: true, headers, body: allShared()
   });
@@ -113,7 +113,7 @@ test('actual Host and protocol must match Origin even when normalized URL would 
   for (const candidate of [origin, 'https://127.0.0.1:3040', 'http://127.0.0.1:3041', 'https://attacker.test']) {
     const headers = { Host: '127.0.0.1:3040', Origin: candidate };
     await error(await f.request('/api/session', {
-      body: { code: f.store.credentials.ownerCode }, headers
+      body: f.store.credentials.demoAccounts!.patient, headers
     }), 403, 'origin_not_allowed');
     await error(await f.request(`/api/owner/connections/${integrationId}`, {
       method: 'PUT', owner: true, headers, body: allShared()

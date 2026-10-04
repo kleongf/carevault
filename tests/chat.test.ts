@@ -27,7 +27,7 @@ async function setup(t: TestContext) {
   });
   const login = await handleRequest(new Request(`${origin}/api/session`, {
     method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code: store.credentials.ownerCode })
+    body: JSON.stringify(store.credentials.demoAccounts!.patient)
   }), store);
   assert.equal(login.status, 200);
   const cookie = login.headers.get('set-cookie')!.split(';')[0];

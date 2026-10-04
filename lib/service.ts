@@ -18,8 +18,8 @@ export class Vault {
     if (!token || token.length > 256) throw new ApiError(401, 'invalid_credential');
     const hash = Buffer.from(digest(token));
     for (const i of this.store.all<Integration>('integration')) {
-      const record = this.store.get<{ hash: string }>('credential', i.id);
-      if (record && timingSafeEqual(hash, Buffer.from(record.hash))) return i.id;
+      const record = this.store.get<{ hash: string | null }>('credential', i.id);
+      if (record?.hash && timingSafeEqual(hash, Buffer.from(record.hash))) return i.id;
     }
     throw new ApiError(401, 'invalid_credential');
   }
@@ -37,6 +37,8 @@ export class Vault {
       const grant = validateGrant(input, new Set(this.memories().filter(m => m.patientId === patient.id).map(m => m.id)));
       i.grant = { ...grant, version: i.grant.version + 1 };
       this.store.put('integration', i.id, i);
+      const recordGrant = this.store.get<import('./records.ts').RecordGrant>('recordGrant', id);
+      if (!i.grant.connected && recordGrant) { recordGrant.connected = false; recordGrant.version++; this.store.put('recordGrant', id, recordGrant); }
       this.activity('You', 'permissions', 'updated', `Updated ${i.name} access`, [], i.grant.version);
       return i;
     });
@@ -45,6 +47,8 @@ export class Vault {
     this.store.transaction(() => {
       const i = this.integration(id); i.grant.connected = false; i.grant.version++;
       this.store.put('integration', id, i);
+      const recordGrant = this.store.get<import('./records.ts').RecordGrant>('recordGrant', id);
+      if (recordGrant) { recordGrant.connected = false; recordGrant.version++; this.store.put('recordGrant', id, recordGrant); }
       this.activity('You', 'revoke', 'revoked', `${i.name} can no longer make requests`, [], i.grant.version);
     });
   }

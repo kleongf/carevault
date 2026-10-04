@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "dataset": "NIH Clinical Center ChestX-ray14",
+  "datasetCard": "https://huggingface.co/datasets/alkzar90/NIH-Chest-X-ray-dataset",
+  "originalDataset": "https://nihcc.app.box.com/v/ChestXray-NIHCC",
+  "citation": "Wang X, Peng Y, Lu L, Lu Z, Bagheri M, Summers RM. ChestX-ray8: Hospital-scale Chest X-ray Database and Benchmarks on Weakly-Supervised Classification and Localization of Common Thorax Diseases. CVPR 2017, pp. 3462-3471. https://arxiv.org/abs/1705.02315",
+  "attribution": "NIH Clinical Center is the original data provider. Hugging Face alkzar90 hosts the downloaded mirror.",
+  "acquisitionNotes": "Three original PNG members extracted with strict HTTP 206 byte ranges from a revision-pinned ZIP; no complete archive downloaded. ZIP CRC32 and output SHA-256 checked. Metadata read only from the first 524288 bytes of the revision-pinned CSV. Distinct research subjects selected for exact No Finding, Mass, and Nodule labels. Not a clinical validation set; sample selection is label-based.",
+  "records": [
+    {
+      "filename": "nih-00000002_000.png",
+      "originalFilename": "00000002_000.png",
+      "title": "NIH research X-ray - No Finding label",
+      "mime": "image/png",
+      "profile": "identifiers",
+      "patientId": "2",
+      "labels": [
+        "No Finding"
+      ],
+      "patientAge": "80",
+      "patientSex": "M",
+      "viewPosition": "PA",
+      "sha256": "84cb473f69dbf9dca2fb946de92545031f03d6501be510555067aee46c17033e",
+      "bytes": 402332,
+      "sourceUrl": "https://huggingface.co/datasets/alkzar90/NIH-Chest-X-ray-dataset/resolve/36778e3b0e4f4b4fad31d1728d6190f3eda5b543/data/images/images_001.zip",
+      "archiveMember": "images/00000002_000.png",
+      "metadataUrl": "https://huggingface.co/datasets/alkzar90/NIH-Chest-X-ray-dataset/resolve/36778e3b0e4f4b4fad31d1728d6190f3eda5b543/data/Data_Entry_2017_v2020.csv",
+      "revision": "36778e3b0e4f4b4fad31d1728d6190f3eda5b543",
+      "provenance": "NIH Clinical Center ChestX-ray14 research image from a real de-identified research subject. This is not an image of fictional patient Alex Morgan. Finding labels are text-mined dataset annotations, not confirmed diagnoses."
+    },
+    {
+      "filename": "nih-00000013_024.png",
+      "originalFilename": "00000013_024.png",
+      "title": "NIH research X-ray - Mass label",
+      "mime": "image/png",
+      "profile": "identifiers",
+      "patientId": "13",
+      "labels": [
+        "Mass"
+      ],
+      "patientAge": "56",
+      "patientSex": "M",
+      "viewPosition": "AP",
+      "sha256": "830b30610dd4d53c26402db17efcab6a038b3af37464dda3e9a795651bf1026d",
+      "bytes": 397785,
+      "sourceUrl": "https://huggingface.co/datasets/alkzar90/NIH-Chest-X-ray-dataset/resolve/36778e3b0e4f4b4fad31d1728d6190f3eda5b543/data/images/images_001.zip",
+      "archiveMember": "images/00000013_024.png",
+      "metadataUrl": "https://huggingface.co/datasets/alkzar90/NIH-Chest-X-ray-dataset/resolve/36778e3b0e4f4b4fad31d1728d6190f3eda5b543/data/Data_Entry_2017_v2020.csv",
+      "revision": "36778e3b0e4f4b4fad31d1728d6190f3eda5b543",
+      "provenance": "NIH Clinical Center ChestX-ray14 research image from a real de-identified research subject. This is not an image of fictional patient Alex Morgan. Finding labels are text-mined dataset annotations, not confirmed diagnoses."
+    },
+    {
+      "filename": "nih-00000008_002.png",
+      "originalFilename": "00000008_002.png",
+      "title": "NIH research X-ray - Nodule label",
+      "mime": "image/png",
+      "profile": "identifiers",
+      "patientId": "8",
+      "labels": [
+        "Nodule"
+      ],
+      "patientAge": "72",
+      "patientSex": "F",
+      "viewPosition": "PA",
+      "sha256": "d33f173e1ee90e487e84af413622302a9212cd145287e949adf1fd058ffc6b38",
+      "bytes": 361319,
+      "sourceUrl": "https://huggingface.co/datasets/alkzar90/NIH-Chest-X-ray-dataset/resolve/36778e3b0e4f4b4fad31d1728d6190f3eda5b543/data/images/images_001.zip",
+      "archiveMember": "images/00000008_002.png",
+      "metadataUrl": "https://huggingface.co/datasets/alkzar90/NIH-Chest-X-ray-dataset/resolve/36778e3b0e4f4b4fad31d1728d6190f3eda5b543/data/Data_Entry_2017_v2020.csv",
+      "revision": "36778e3b0e4f4b4fad31d1728d6190f3eda5b543",
+      "provenance": "NIH Clinical Center ChestX-ray14 research image from a real de-identified research subject. This is not an image of fictional patient Alex Morgan. Finding labels are text-mined dataset annotations, not confirmed diagnoses."
+    }
+  ]
+}

@@ -14,6 +14,8 @@ export interface Grant {
 }
 export interface Integration {
   id: string; name: string; publisher: string; description: string;
+  developerId?: string; appUrl?: string; capabilities?: ('text:read' | 'files:redacted' | 'files:original' | 'reports:create')[];
+  recordApiOnly?: boolean;
   track: string; icon: 'scan' | 'flask' | 'pill' | 'chat'; grant: Grant;
 }
 export interface Segment { text: string; category: Category; parentIds?: string[]; }

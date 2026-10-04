@@ -1,0 +1,6 @@
+.venv/
+.models/
+verification-output/
+__pycache__/
+fixtures/
+benchmark-results.json
