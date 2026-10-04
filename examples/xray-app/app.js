@@ -1,7 +1,7 @@
 const $ = id => document.getElementById(id);
 let records = [], draftId = null, previewUrl = null, selectionVersion = 0;
 let authorization = '', session = new AbortController(), signingIn = false;
-const messages = {sign_in_required:'Incorrect username or password. Please sign in again.',image_not_shared:'This image is no longer shared. Refresh the list.',access_denied:'CareVault denied access. Check the app connection and permissions.',selected_model_price_limit: 'The selected model is unavailable or exceeds the configured price limit.', selected_model_not_available_free:'The selected language model is unavailable or is no longer free.',configure_openrouter_model_and_key:'Configure the language model and API key on this app’s server.',inference_unavailable_check_local_weights_and_dependencies:'The local classifier is not ready. Check its dependencies and model weights.',save_outcome_unknown_check_carevault:'The save result is uncertain. Check your vault before creating another report.'};
+const messages = {sign_in_required:'Incorrect username or password. Please sign in again.',image_not_shared:'This image is no longer shared. Refresh the list.',access_denied:'CareVault denied access. Check the app connection and permissions.',selected_model_no_vision:'The selected model does not support images. Check server configuration.',selected_model_price_limit: 'The selected model is unavailable or exceeds the configured price limit.', selected_model_not_available_free:'The selected language model is unavailable or is no longer free.',configure_openrouter_model_and_key:'Configure the language model and API key on this app’s server.',inference_unavailable_check_local_weights_and_dependencies:'The local classifier is not ready. Check its dependencies and model weights.',save_outcome_unknown_check_carevault:'The save result is uncertain. Check your vault before creating another report.'};
 
 function boundary(text, index) {
   return index < 0 || index >= text.length || /[^\w]/.test(text[index]);
@@ -121,9 +121,17 @@ function showNotice(node, text, error = false) {
   noticeTimer = window.setTimeout(() => { if (node.textContent === text) { node.textContent = ''; node.className = ''; } }, 4200);
 }
 function status(text, error = false) { showNotice($('status'), text, error); }
+function setGenerating(active) {
+  $('analyze').setAttribute('aria-busy', String(active));
+  $('analyze-spinner').hidden = !active;
+  $('analyze-icon').toggleAttribute('hidden', active);
+  $('analyze-label').textContent = active ? 'Generating report…' : 'Analyze image';
+  $('analyze').disabled = active || !records.length;
+  for (const id of ['refresh', 'image', 'variant']) $(id).disabled = active;
+}
 function clearSession() {
   session.abort(); session = new AbortController(); authorization = ''; selectionVersion++;
-  records = [];
+  records = []; setGenerating(false);
   if(previewUrl) URL.revokeObjectURL(previewUrl);
   previewUrl = null; $('preview').removeAttribute('src'); $('preview').hidden = true;
   clearDraft(); $('image').replaceChildren(); $('variant').replaceChildren();
@@ -178,15 +186,17 @@ $('sign-out').addEventListener('click',()=>{clearSession(); $('username').focus(
 $('refresh').addEventListener('click',refresh); $('image').addEventListener('change',selectImage);
 $('variant').addEventListener('change',()=>{clearDraft(); preview();});
 $('analyze').addEventListener('click',async()=>{
-  $('analyze').disabled=true; $('refresh').disabled=true; $('image').disabled=true; $('variant').disabled=true; clearDraft();
-  status('Running classifier and drafting the report…');
+  const activeSession = session;
+  setGenerating(true); clearDraft();
+  status('');
   try {
     const result=await api('/api/analyze',{recordId:$('image').value,variant:$('variant').value});
+    if (session !== activeSession) return;
     draftId=result.draftId; renderReport(result.report); $('save').disabled=false; status('Report ready.');
     if(!$('report').hidden) $('report').focus();
   }
   catch(error) {showError(error);}
-  finally { $('analyze').disabled=!records.length; $('refresh').disabled=false; $('image').disabled=false; $('variant').disabled=false; }
+  finally { if (session === activeSession) setGenerating(false); }
 });
 $('save').addEventListener('click',async()=>{
   if(!draftId)return; $('save').disabled=true; status('Saving report…');

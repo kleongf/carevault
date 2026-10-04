@@ -5,7 +5,7 @@ A separate local application demonstrating CareVault's integration contract:
 1. List image records explicitly shared with the integration.
 2. Read the selected original or redacted image and obtain a source receipt.
 3. Run a real pretrained TorchXRayVision classifier locally.
-4. Send **numeric classifier scores only** to an explicitly configured OpenRouter model to draft an unverified report.
+4. Send **the selected image version and numeric classifier scores** to an explicitly configured OpenRouter model to draft an unverified Markdown report.
 5. Recheck access and image content before displaying the draft.
 6. On **Save report**, obtain a fresh receipt and write the report into CareVault. The new record starts unshared.
 
@@ -49,7 +49,7 @@ Set `OPENROUTER_MODEL` explicitly. Both demo apps now select `openai/gpt-6.1-sol
 .venv/bin/python app.py
 ```
 
-Open `http://127.0.0.1:3041`. The browser never receives the integration token or OpenRouter key. Selected images stay in this local app; the LLM receives scores, not image pixels, patient text, or source identifiers.
+Open `http://127.0.0.1:3041`. The browser never receives the integration token or OpenRouter key. The LLM receives the exact selected PNG/JPEG version as an inline base64 image plus classifier scores. It receives no vault URL, credential, record ID, or separate patient text. Original files may include embedded identifiers and metadata; the redacted version is sent only when selected and authorized, without falling back to the original. Access and the image digest are checked immediately before sending and before releasing the report. The model catalog must advertise image input support. Image input tokens count toward the existing input-token price cap.
 
 ## Model choice and limitations
 
@@ -76,3 +76,5 @@ When changing the model, preprocessing, or provider, repeat the recorded checks 
 - The new report's unshared state and denial of subsequent reads after revocation.
 
 Requests have bounded response sizes and socket timeouts; classification runs in an isolated process with a 60-second deadline. Only one analysis/save operation runs at a time. Drafts expire after ten minutes, with at most ten retained in memory. Duplicate successful saves return the original record ID. An ambiguous failed write is not automatically retried; check CareVault first. No automatic clinical-record overwrites or treatment recommendations are implemented.
+
+The prompt requests Markdown headings for Image observations, Classifier findings, and Limitations, with short bullets and bold terms. The existing text-node Markdown renderer displays headings/lists/emphasis without executing HTML or remote image links. Reports and saved provenance remain unverified.

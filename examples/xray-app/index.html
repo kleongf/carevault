@@ -12,7 +12,7 @@
   <div class="header-actions">
     <details class="about" id="data-usage">
       <summary class="icon-button" aria-label="About and data usage" title="About and data usage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></summary>
-      <div class="about-content"><p>Unverified model output, not a diagnosis. Scores are not disease probabilities.</p><p>Images stay local. Classifier scores go to OpenRouter and its provider.</p><p>Saved reports remain unshared.</p></div>
+      <div class="about-content"><p>Unverified model output, not a diagnosis. Scores are not disease probabilities.</p><p>The selected image version and classifier scores go to OpenRouter and its provider. Original files may include identifiers and metadata.</p><p>Saved reports remain unshared.</p></div>
     </details>
     <a class="quiet icon-button" href="http://127.0.0.1:3040/" target="_blank" rel="noreferrer" aria-label="Open CareVault" title="Open CareVault"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M10 5H5v14h14v-5"/></svg></a>
     <button id="sign-out" class="quiet icon-button" type="button" aria-label="Sign out" title="Sign out" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H5v14h4M14 8l4 4-4 4M8 12h10"/></svg></button>
@@ -32,7 +32,7 @@
   </section>
   <div id="workspace" hidden>
     <div class="intro">
-      <p>Chest X-ray Review turns a shared chest image into an unverified research report from local classifier scores.</p>
+      <p>Analyze the selected image and classifier scores with OpenRouter.</p>
       <span class="badge">Research demo</span>
     </div>
     <div id="status" role="status" aria-live="polite"></div>
@@ -47,7 +47,7 @@
         <label for="variant">Shared version</label>
         <select id="variant"></select>
         <img id="preview" alt="Selected shared chest X-ray" hidden>
-        <button id="analyze" class="primary" type="button" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></svg><span>Analyze image</span></button>
+        <button id="analyze" class="primary" type="button" aria-busy="false" disabled><span id="analyze-spinner" class="spinner" aria-hidden="true" hidden></span><svg id="analyze-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></svg><span id="analyze-label">Analyze image</span></button>
       </section>
       <section class="card" id="result" aria-labelledby="report-title">
         <div class="section-top"><h2 id="report-title">Research report</h2><span class="badge badge-unverified">Unverified</span></div>

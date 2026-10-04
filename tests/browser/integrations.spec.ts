@@ -16,7 +16,7 @@ const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQ
 
 async function mockedApp(page: Page, app: App) {
   const state = {
-    calls: [] as Call[], blocked: [] as string[], empty: false,
+    calls: [] as Call[], blocked: [] as string[], empty: false, report, analysisGate: undefined as Promise<void> | undefined,
     failure: null as null | { path: string; status: number; error: string },
   };
   const assets: Record<string, { file: string; contentType: string }> = {
@@ -40,6 +40,7 @@ async function mockedApp(page: Page, app: App) {
       requestedWith: headers['x-requested-with'], body: request.postDataJSON() });
     const json = (value: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(value) });
     if (headers.authorization !== authorization) { await json({ error: 'sign_in_required' }, 401); return; }
+    if (url.pathname === '/api/analyze') await state.analysisGate;
     if (state.failure?.path === url.pathname) { await json({ error: state.failure.error }, state.failure.status); return; }
     if (url.pathname === '/api/session') { await json({ authenticated: true }); return; }
     if (url.pathname === '/api/records') {
@@ -50,7 +51,7 @@ async function mockedApp(page: Page, app: App) {
     }
     if (url.pathname === '/api/context') { await json({ context: [{ recordId: 'fixture-note', text: sharedText }] }); return; }
     if (url.pathname === '/api/image') { await route.fulfill({ contentType: 'image/png', body: image }); return; }
-    if (url.pathname === '/api/analyze') { await json({ draftId: 'fixture-draft', report }); return; }
+    if (url.pathname === '/api/analyze') { await json({ draftId: 'fixture-draft', report: state.report }); return; }
     if (url.pathname === '/api/save') { await json({ reportId: 'fixture-saved-report' }); return; }
     state.blocked.push(request.url()); await route.fulfill({ status: 404 });
   });
@@ -187,5 +188,56 @@ for (const app of ['medicine', 'xray'] as const) {
       expect(state.calls.some(call => call.path === '/api/save')).toBe(false);
       expect(state.blocked).toEqual([]);
     });
+  });
+}
+
+
+test('xray Markdown headings and lists render without executing image text', async ({ page }, info) => {
+  const state = await mockedApp(page, 'xray');
+  state.report = '# Chest X-ray research report\n\n**UNVERIFIED — not a diagnosis**\n\n## Image observations\n\n- **Candidate finding**: uncertain.\n\n## Classifier findings\n\n- Scores are uncalibrated.\n\n## Limitations\n\n- Clinician review required.\n- <img src=x onerror="window.injected=true">';
+  await signIn(page, 'xray');
+  await expect(page.locator('.intro')).toContainText('selected image and classifier scores with OpenRouter');
+  await selectContext(page, 'xray');
+  await page.locator('#analyze').click();
+  await expect(page.locator('#report').getByRole('heading', { name: 'Image observations' })).toBeVisible();
+  await expect(page.locator('#report strong').first()).toHaveText('UNVERIFIED — not a diagnosis');
+  await expect(page.locator('#report ul')).toHaveCount(3);
+  await expect(page.locator('#report img')).toHaveCount(0);
+  expect(await page.evaluate(() => (window as Window & { injected?: boolean }).injected)).toBeUndefined();
+  expect(state.blocked).toEqual([]);
+  await page.screenshot({ path: info.outputPath('xray-markdown.png'), fullPage: true });
+});
+
+
+for (const outcome of ['success', 'failure', 'logout'] as const) {
+  test(`xray generation spinner resets after ${outcome}`, async ({ page }, info) => {
+    const state = await mockedApp(page, 'xray');
+    let release!: () => void;
+    state.analysisGate = new Promise<void>(resolve => { release = resolve; });
+    if (outcome === 'failure') state.failure = { path: '/api/analyze', status: 503, error: 'selected_model_no_vision' };
+    await signIn(page, 'xray');
+    await selectContext(page, 'xray');
+    await page.locator('#analyze').click();
+    await expect(page.locator('#analyze')).toHaveAttribute('aria-busy', 'true');
+    await expect(page.locator('#analyze')).toBeDisabled();
+    await expect(page.locator('#analyze-spinner')).toBeVisible();
+    await expect(page.locator('#analyze-icon')).toBeHidden();
+    await expect(page.locator('#analyze')).toContainText('Generating report');
+    await expect(page.locator('#image')).toBeDisabled();
+    if (outcome === 'success') await page.screenshot({ path: info.outputPath('xray-generating.png'), fullPage: true });
+    if (outcome === 'logout') await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    release();
+    await expect(page.locator('#analyze')).toHaveAttribute('aria-busy', 'false');
+    await expect(page.locator('#analyze-spinner')).toBeHidden();
+    await expect(page.locator('#analyze-label')).toHaveText('Analyze image');
+    if (outcome === 'logout') {
+      await expect(page.locator('#workspace')).toBeHidden();
+      await signIn(page, 'xray');
+      await expect(page.locator('#report')).toBeEmpty();
+    } else {
+      await expect(page.locator('#analyze')).toBeEnabled();
+      if (outcome === 'failure') await expect(page.locator('#save')).toBeDisabled();
+      else await expect(page.locator('#save')).toBeEnabled();
+    }
   });
 }

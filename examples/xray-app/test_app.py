@@ -21,6 +21,9 @@ class Fixture:
         self.shared = True
         self.paid = False
         self.prices = None
+        self.modalities = ["text", "image"]
+        self.variants = {"original": True, "redacted": False}
+        self.mime = "image/png"
         self.revoke_during_llm = False
         self.image = PNG
         self.receipts = []
@@ -38,15 +41,15 @@ class Fixture:
     def request(self, url, **kwargs):
         self.calls.append((url, kwargs))
         if url.endswith("/api/v2/records"):
-            return json.dumps({"records": [{"id": RECORD, "kind": "image", "mime": "image/png", "status": "ready", "allowed": {"original": True, "redacted": False}}] if self.shared else []}).encode(), {}
+            return json.dumps({"records": [{"id": RECORD, "kind": "image", "mime": "image/png", "status": "ready", "allowed": self.variants}] if self.shared else []}).encode(), {}
         if "/files/" in url:
             if not self.shared:
                 raise AppError("access_denied", 403)
             receipt = str(uuid.uuid4())
             self.receipts.append(receipt)
-            return self.image, {"content-type": "image/png", "x-carevault-receipt": receipt}
+            return self.image, {"content-type": self.mime, "x-carevault-receipt": receipt}
         if url == OPENROUTER + "/models":
-            return json.dumps({"data": [{"id": self.model, "pricing": self.prices if self.prices is not None else {"prompt": "0.1" if self.paid else "0", "completion": "0", "request": "0"}}]}).encode(), {}
+            return json.dumps({"data": [{"id": self.model, "architecture": {"input_modalities": self.modalities}, "pricing": self.prices if self.prices is not None else {"prompt": "0.1" if self.paid else "0", "completion": "0", "request": "0"}}]}).encode(), {}
         if url == OPENROUTER + "/chat/completions":
             if self.revoke_during_llm:
                 self.shared = False
@@ -109,7 +112,7 @@ class ContractTests(unittest.TestCase):
                     f.app.analyze(RECORD, "original")
                 self.assertFalse(any(url.endswith("/chat/completions") for url, _ in f.calls))
 
-    def test_report_contains_provenance_and_only_scores_leave_for_llm(self):
+    def test_report_contains_provenance_and_selected_image_with_scores(self):
         f = Fixture()
         draft = f.app.analyze(RECORD, "original")
         self.assertIn("UNVERIFIED", draft["report"])
@@ -119,12 +122,53 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(payload["model"], f.model)
         self.assertFalse(payload["provider"]["allow_fallbacks"])
         self.assertEqual(payload["provider"]["max_price"], {"prompt": 0, "completion": 0, "request": 0, "image": 0})
+        content = payload["messages"][1]["content"]
+        self.assertEqual(json.loads(content[0]["text"])["scores"], draft["scores"])
+        self.assertEqual(base64.b64decode(content[1]["image_url"]["url"].split(",", 1)[1]), PNG)
+        self.assertTrue(content[1]["image_url"]["url"].startswith("data:image/png;base64,"))
+        self.assertIn("well-formatted Markdown", payload["messages"][0]["content"])
+        self.assertIn("## Provenance", draft["report"])
         serialized = json.dumps(payload)
         self.assertNotIn(RECORD, serialized)
         self.assertNotIn("vault-secret", serialized)
         self.assertNotIn("provider-secret", serialized)
         self.assertNotIn("synthetic test bytes", serialized)
         self.assertNotIn("provider-secret", json.dumps(draft))
+
+    def test_redacted_version_is_sent_without_requesting_original(self):
+        f = Fixture()
+        f.variants = {"original": False, "redacted": True}
+        f.image = PNG + b"redacted rendition"
+        f.app.analyze(RECORD, "redacted")
+        payload = next(options["body"] for url, options in f.calls if url.endswith("/chat/completions"))
+        image_url = payload["messages"][1]["content"][1]["image_url"]["url"]
+        self.assertEqual(base64.b64decode(image_url.split(",", 1)[1]), f.image)
+        self.assertFalse(any("/files/original" in url for url, _ in f.calls))
+
+    def test_jpeg_is_sent_with_matching_media_type(self):
+        f = Fixture(); f.mime = "image/jpeg"; f.image = b"\xff\xd8\xffsynthetic jpeg"
+        f.app.analyze(RECORD, "original")
+        payload = next(options["body"] for url, options in f.calls if url.endswith("/chat/completions"))
+        image_url = payload["messages"][1]["content"][1]["image_url"]["url"]
+        self.assertTrue(image_url.startswith("data:image/jpeg;base64,"))
+        self.assertEqual(base64.b64decode(image_url.split(",", 1)[1]), f.image)
+
+    def test_text_only_model_blocks_image_submission(self):
+        f = Fixture(); f.modalities = ["text"]
+        with self.assertRaisesRegex(AppError, "selected_model_no_vision"):
+            f.app.analyze(RECORD, "original")
+        self.assertFalse(any(url.endswith("/chat/completions") for url, _ in f.calls))
+
+    def test_changed_image_during_lookup_blocks_image_submission(self):
+        f = Fixture()
+        def request(url, **kwargs):
+            if url.endswith("/models"):
+                f.image = PNG + b"changed"
+            return f.request(url, **kwargs)
+        f.app.request = request
+        with self.assertRaisesRegex(AppError, "source_changed_run_again"):
+            f.app.analyze(RECORD, "original")
+        self.assertFalse(any(url.endswith("/chat/completions") for url, _ in f.calls))
 
     def test_permission_change_while_llm_runs_discards_draft(self):
         f = Fixture(); f.revoke_during_llm = True
@@ -244,7 +288,7 @@ class HttpTests(unittest.TestCase):
         self.assertIn(b'id="workspace" hidden', html)
         self.assertIn(b'class="header-actions"', html)
         self.assertIn(b'class="layout"', html)
-        self.assertIn(b"Chest X-ray Review turns a shared chest image into an unverified research report from local classifier scores.", html)
+        self.assertIn(b"Analyze the selected image and classifier scores with OpenRouter.", html)
         self.assertIn(b'aria-label="Unverified research report"', html)
         self.assertIn(b'aria-label="Open CareVault"', html)
         self.assertIn(b'aria-label="About and data usage"', html)
