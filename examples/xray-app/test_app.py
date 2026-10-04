@@ -20,6 +20,7 @@ class Fixture:
         self.calls = []
         self.shared = True
         self.paid = False
+        self.prices = None
         self.revoke_during_llm = False
         self.image = PNG
         self.receipts = []
@@ -45,7 +46,7 @@ class Fixture:
             self.receipts.append(receipt)
             return self.image, {"content-type": "image/png", "x-carevault-receipt": receipt}
         if url == OPENROUTER + "/models":
-            return json.dumps({"data": [{"id": self.model, "pricing": {"prompt": "0.1" if self.paid else "0", "completion": "0", "request": "0"}}]}).encode(), {}
+            return json.dumps({"data": [{"id": self.model, "pricing": self.prices if self.prices is not None else {"prompt": "0.1" if self.paid else "0", "completion": "0", "request": "0"}}]}).encode(), {}
         if url == OPENROUTER + "/chat/completions":
             if self.revoke_during_llm:
                 self.shared = False
@@ -83,6 +84,30 @@ class ContractTests(unittest.TestCase):
         with self.assertRaisesRegex(AppError, "not_available_free"):
             f.app.analyze(RECORD, "original")
         self.assertFalse(any(url.endswith("/chat/completions") for url, _ in f.calls))
+
+    def test_requested_sol_uses_capped_prices_without_fallback(self):
+        f = Fixture()
+        f.app.config.model = f.model = "openai/gpt-6.1-sol"
+        f.prices = {"prompt": ".000002", "completion": ".00001", "web_search": ".01"}
+        draft = f.app.analyze(RECORD, "original")
+        payload = next(options["body"] for url, options in f.calls if url.endswith("/chat/completions"))
+        self.assertIn(f.model, draft["report"])
+        self.assertEqual(payload["provider"], {"allow_fallbacks": False, "max_price": {"prompt": 2, "completion": 10, "request": 0, "image": 0}})
+        self.assertEqual(payload["reasoning"], {"effort": "low", "exclude": True})
+        self.assertNotIn("temperature", payload)
+
+    def test_sol_missing_or_over_budget_prices_stop_before_disclosure(self):
+        for prices in ({}, {"prompt": ".000002"}, {"prompt": ".000003", "completion": ".00001"},
+                       {"prompt": ".000002", "completion": ".000011"}, {"prompt": "-1", "completion": "0"},
+                       {"prompt": "NaN", "completion": "0"}, {"prompt": "Infinity", "completion": "0"},
+                       {"prompt": "0", "completion": "0", "image": ".01"}):
+            with self.subTest(prices=prices):
+                f = Fixture()
+                f.app.config.model = f.model = "openai/gpt-6.1-sol"
+                f.prices = prices
+                with self.assertRaisesRegex(AppError, "selected_model_price_limit"):
+                    f.app.analyze(RECORD, "original")
+                self.assertFalse(any(url.endswith("/chat/completions") for url, _ in f.calls))
 
     def test_report_contains_provenance_and_only_scores_leave_for_llm(self):
         f = Fixture()

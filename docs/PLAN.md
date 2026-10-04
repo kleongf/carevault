@@ -51,11 +51,11 @@ The fictional Alex Morgan respiratory story has an intake, visit note, illustrat
 
 Three NIH research images are downloaded individually through bounded ZIP byte ranges, not a full archive. Preserve subject IDs, original filenames, revision, labels, hashes, and attribution in `demo/nih-manifest.json`. They are not images of Alex Morgan. Labels are text-mined research annotations, and the samples do not establish clinical model accuracy.
 
-**Chest X-ray Review (3041):** a separately authenticated local app retrieves an authorized image, runs the official pretrained TorchXRayVision model, sends classifier scores to an explicitly selected free OpenRouter model, rechecks current access, and saves a source-linked unverified report on request. Evaluate real preprocessing/runtime/output and original-versus-redacted behavior before claiming the demo works. Scores are not calibrated probabilities or cancer diagnoses.
+**Chest X-ray Review (3041):** a separately authenticated local app retrieves an authorized image, runs the official pretrained TorchXRayVision model, sends classifier scores to the explicitly selected OpenRouter model, rechecks current access, and saves a source-linked unverified report on request. Evaluate real preprocessing/runtime/output and original-versus-redacted behavior before claiming the demo works. Scores are not calibrated probabilities or cancer diagnoses.
 
 **Medicine app (3043):** a separate OpenRouter wrapper reads selected authorized text and drafts a medicine-related response/report. It uses `text:read` and `reports:create`, with its own server-side token, provider key, and local app login. No medicine chatbot belongs in CareVault navigation. Its implementation/test status must be recorded separately from the X-ray app.
 
-No app may silently fall back to paid models, fictional inference, or another provider model. Provider-free availability is a runtime constraint, not a guarantee from an old price listing.
+No app may silently fall back to paid models, fictional inference, or another provider model. The user requested `openai/gpt-6.1-sol` on October 4, 2026 for both apps, with routing caps of $2/million input and $10/million output tokens and zero request/image fees. Other model selections remain free-only; catalog availability and pricing are checked before generation.
 
 ## Migration
 

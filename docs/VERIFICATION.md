@@ -139,3 +139,13 @@ Production build, `npm run typecheck`, and `git diff --check` passed. The final 
 Included the other agent's `b8efaf3` integration-card, record grouping, markdown rendering, preview-dialog, and status-toast changes. Fresh checks passed: 60 Node tests, 23 Medicine Review tests, 14 X-ray tests, TypeScript, production build, and all 36 Chromium desktop/mobile cases (44.3 seconds). The build/browser run used a temporary source snapshot with no private vault or provider keys. Browser checks now close the new preview dialog and verify that failed generation leaves an empty report with Save disabled. Worker/model suites were not rerun for this UI publication check. Configured secrets were checked against tracked files and were absent.
 
 The previous GitHub main at `e2e00722c0bc3caa2f0cf61160bf01fbbafa57e1` was preserved on `archive/main-before-carevault-2026-10-04` before any main replacement. The synthetic pitch PDF is now tracked as a binary artifact.
+
+
+## GPT-6.1 Sol switch — October 4, 2026
+
+At the user's request, both standalone demo apps now configure `openai/gpt-6.1-sol`. Catalog checks and provider routing caps permit this exact paid model up to $2/million input tokens and $10/million output tokens, with zero request/image fees and no provider fallback. Other selections remain free-only. Low reasoning effort replaces the previous temperature setting for this model. No CareVault permission or report-write contract changed.
+
+- 25 medicine tests and 16 X-ray tests passed, including the local HTTP authentication cases. Added coverage proves the selected Sol model uses the explicit caps, rejects absent/invalid/over-budget prices before model disclosure, and leaves other paid models denied. Existing source-change, revocation, receipt, and writeback tests remain passing.
+- Both JavaScript syntax checks passed. No UI layout changed; the new price-limit error uses the existing error display.
+- Two real OpenRouter calls through the app core paths returned `openai/gpt-6.1-sol`, `finish_reason=stop`, and validated report drafts. Medicine used injected synthetic text (603 total tokens, reported cost $0.003038); X-ray used injected numeric classifier scores (642 total tokens, reported cost $0.003188). The real provider was used; vault reads and X-ray inference were injected in this specific check. Neither draft was saved, and no patient files or images were sent. Earlier real vault/classifier/writeback evidence above is separate.
+- Both demo servers restarted with the updated local configuration. Their existing authenticated session and real CareVault record-list routes returned HTTP 200. No saved records or grants were changed. JavaScript syntax and `git diff --check` passed.

@@ -17,7 +17,7 @@ Read README.md, docs/PLAN.md, and docs/VERIFICATION.md before implementation. Cu
 - Separate example apps are in scope: Chest X-ray Review on 3041, and a medicine OpenRouter wrapper on 3043. CareVault runs on 3040. External apps may draft unverified reports with valid source receipts; they do not establish clinical facts.
 - Keep the main UI concise. Put technical setup in the developer portal/docs, not repetitive patient-facing explanations.
 - Prefer short labels and logical icons for secondary actions, with accessible names/tooltips. Put descriptions and reference details behind native disclosures; keep permission choices and unverified status clear. Preserve keyboard focus when dialogs close.
-- Free/local operation first. Do not incur paid model usage or silently substitute models. Source publication to https://github.com/kleongf/carevault.git is authorized; public deployment is not configured.
+- Free/local operation first, except the user-requested `openai/gpt-6.1-sol` in both demo apps (October 4, 2026). Cap it at $2/million input tokens and $10/million output tokens, with zero request/image fees. Other model selections remain free-only. Never silently substitute models. Source publication to https://github.com/kleongf/carevault.git is authorized; public deployment is not configured.
 
 ## Execution and ownership
 

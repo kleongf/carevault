@@ -26,6 +26,26 @@ class AppError(Exception):
         super().__init__(code)
 
 
+def model_price_caps(model, prices):
+    # Explicitly requested paid model; all other selections retain free-only behavior.
+    paid = model == "openai/gpt-6.1-sol"
+    caps = {"prompt": 2 if paid else 0, "completion": 10 if paid else 0, "request": 0, "image": 0}
+    try:
+        valid = isinstance(prices, dict) and "prompt" in prices and "completion" in prices
+        if paid:
+            for key, cap in caps.items():
+                price = Decimal(str(prices.get(key, 0)))
+                ceiling = Decimal(cap) / 1_000_000 if key in ("prompt", "completion") else Decimal(cap)
+                valid = valid and price.is_finite() and 0 <= price <= ceiling
+        else:
+            valid = valid and all(Decimal(str(value)) == 0 for value in prices.values())
+    except (InvalidOperation, ValueError, TypeError, AttributeError):
+        valid = False
+    if not valid:
+        raise AppError("selected_model_price_limit" if paid else "selected_model_not_available_free", 503)
+    return caps
+
+
 @dataclass
 class Config:
     vault_url: str
@@ -154,7 +174,7 @@ class MedicineApp:
             raise AppError("source_changed_run_again", 409)
         return receipts
 
-    def check_free_model(self):
+    def check_model(self):
         if not self.config.openrouter_key or not re.fullmatch(r"[A-Za-z0-9_./:-]{3,150}", self.config.model):
             raise AppError("configure_openrouter_model_and_key", 503)
         data, _ = self.request(OPENROUTER + "/models", limit=8_000_000, timeout=15)
@@ -163,12 +183,7 @@ class MedicineApp:
             raise AppError("invalid_upstream_response", 502)
         model = next((item for item in models if isinstance(item, dict) and item.get("id") == self.config.model), None)
         prices = model.get("pricing", {}) if model else {}
-        try:
-            free = isinstance(prices, dict) and "prompt" in prices and "completion" in prices and all(Decimal(str(value)) == 0 for value in prices.values())
-        except (InvalidOperation, ValueError):
-            free = False
-        if not free:
-            raise AppError("selected_model_not_available_free", 503)
+        return model_price_caps(self.config.model, prices)
 
     def analyze(self, record_ids):
         if not self.lock.acquire(blocking=False):
@@ -176,13 +191,16 @@ class MedicineApp:
         try:
             context, _ = self.context(record_ids)
             fingerprint = digest(context)
-            self.check_free_model()
+            caps = self.check_model()
             # Catalog lookup is asynchronous too: recheck before sending any context.
             self.current(record_ids, fingerprint)
             payload = {"model": self.config.model, "max_tokens": 2200, "temperature": 0.2,
                        "reasoning": {"enabled": True, "exclude": True},
-                       "provider": {"allow_fallbacks": False, "max_price": {"prompt": 0, "completion": 0, "request": 0, "image": 0}},
+                       "provider": {"allow_fallbacks": False, "max_price": caps},
                        "messages": [{"role": "system", "content": PROMPT}, {"role": "user", "content": json.dumps({"permittedRecordExcerpts": context})}]}
+            if self.config.model == "openai/gpt-6.1-sol":
+                payload.pop("temperature", None)
+                payload["reasoning"] = {"effort": "low", "exclude": True}
             data, _ = self.request(OPENROUTER + "/chat/completions", method="POST",
                                    headers={"Authorization": "Bearer " + self.config.openrouter_key, "Content-Type": "application/json"},
                                    body=payload, limit=100_000, timeout=45)

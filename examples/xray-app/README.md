@@ -5,7 +5,7 @@ A separate local application demonstrating CareVault's integration contract:
 1. List image records explicitly shared with the integration.
 2. Read the selected original or redacted image and obtain a source receipt.
 3. Run a real pretrained TorchXRayVision classifier locally.
-4. Send **numeric classifier scores only** to an explicitly configured free OpenRouter model to draft an unverified report.
+4. Send **numeric classifier scores only** to an explicitly configured OpenRouter model to draft an unverified report.
 5. Recheck access and image content before displaying the draft.
 6. On **Save report**, obtain a fresh receipt and write the report into CareVault. The new record starts unshared.
 
@@ -43,7 +43,7 @@ Download the `densenet121-res224-all` checkpoint from the [official TorchXRayVis
 
 Set `XRAY_WEIGHTS_PATH` to that file and `XRAY_WEIGHTS_SHA256` to its locally verified SHA256 digest. The upstream asset metadata has no published digest; compute it after obtaining the file from the official HTTPS release. This pins the provisioned artifact against later change, rather than independently authenticating the initial download. Never use an uploaded or untrusted checkpoint: the upstream format is a serialized Python module and is loaded with `weights_only=False` after the size/hash checks.
 
-Set `OPENROUTER_MODEL` explicitly. The previously selected `stealth/space-bunny-alpha` was listed free on October 3, 2026, with retirement announced for October 5. This example checks current model pricing before every LLM call and refuses absent/nonzero prices. It does not select a replacement when the model disappears. The request specifies zero prompt, completion, request, and image price caps and disables provider fallback. Access is rechecked after model lookup, immediately before sending the derived scores.
+Set `OPENROUTER_MODEL` explicitly. Both demo apps now select `openai/gpt-6.1-sol` at the user’s request (October 4, 2026). This is a paid model: catalog prices must be at most $2/million input tokens and $10/million output tokens, with no request/image fees. Requests enforce those routing caps, disable provider fallback, and use low reasoning effort. The optional web-search tool is not enabled. Other model selections still require zero advertised prices. Missing models, missing prices, excessive prices, and unavailable providers produce errors; no replacement model is selected. Access is rechecked after model lookup, immediately before sending the derived scores.
 
 ```sh
 .venv/bin/python app.py
@@ -72,7 +72,7 @@ When changing the model, preprocessing, or provider, repeat the recorded checks 
 - Cold/warm runtime, finite 18-label scores, reproducible preprocessing, and reasonable memory use.
 - Behavior for rejected formats and revoked image permissions.
 - Original-versus-redacted input differences, without treating them as clinical validation.
-- Exact OpenRouter model, current zero pricing, successful completed draft, and real CareVault writeback.
+- Exact OpenRouter model, current pricing within configured caps, successful completed draft, and real CareVault writeback.
 - The new report's unshared state and denial of subsequent reads after revocation.
 
 Requests have bounded response sizes and socket timeouts; classification runs in an isolated process with a 60-second deadline. Only one analysis/save operation runs at a time. Drafts expire after ten minutes, with at most ten retained in memory. Duplicate successful saves return the original record ID. An ambiguous failed write is not automatically retried; check CareVault first. No automatic clinical-record overwrites or treatment recommendations are implemented.

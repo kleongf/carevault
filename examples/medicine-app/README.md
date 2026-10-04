@@ -1,6 +1,6 @@
 # Medicine Review
 
-A separate personalized-medicine demonstration at **http://127.0.0.1:3043**. It reads patient-selected redacted record text through CareVault, asks an explicitly configured free OpenRouter model to draft a medication-options discussion, and saves an unverified report only when the user clicks Save.
+A separate personalized-medicine demonstration at **http://127.0.0.1:3043**. It reads patient-selected redacted record text through CareVault, asks an explicitly configured OpenRouter model to draft a medication-options discussion, and saves an unverified report only when the user clicks Save.
 
 This is a prompt-based research demonstration, not an evaluated recommendation algorithm, prescriber, interaction checker, or clinical decision system. The prompt asks for source-grounded options and questions for a clinician, without diagnoses, dosing, or treatment-change instructions. Model compliance is not a clinical guarantee. Missing or redacted fields remain unknown, including allergy status. Use synthetic records.
 
@@ -35,7 +35,7 @@ worker/.venv/bin/python -c 'from dotenv import load_dotenv; import runpy; import
 | `MEDICINE_APP_USERNAME` | Local HTTP Basic username, no colon |
 | `MEDICINE_APP_PASSWORD` | Unique local password, 12–256 characters |
 
-The example model reflects the user's earlier choice. It may become unavailable. Every generation checks the current OpenRouter catalog and rejects a missing model, missing prompt/completion prices, or any nonzero advertised pricing component. Requests also set zero prompt/completion/request/image price caps and disable provider fallbacks. Rate limits or unavailable free providers produce errors, never a paid fallback. See [OpenRouter model catalog documentation](https://openrouter.ai/docs/api/api-reference/models/list-all-models-and-their-properties) and [provider routing documentation](https://openrouter.ai/docs/guides/routing/provider-selection).
+Both demo apps now select `openai/gpt-6.1-sol` at the user’s request (October 4, 2026). This is a paid model: catalog prices must be at most $2/million input tokens and $10/million output tokens, with no request/image fees. Requests enforce those routing caps, disable provider fallback, and use low reasoning effort. The optional web-search tool is not enabled. Other model selections still require zero advertised prices. Missing models, missing prices, excessive prices, and unavailable providers produce errors; no replacement model is selected.
 
 ## Data and permission boundaries
 

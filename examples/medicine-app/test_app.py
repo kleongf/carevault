@@ -27,6 +27,7 @@ class FakeNetwork:
         self.text = {FIRST: 'Patient reports cough. Medication history: inhaler use reported; name not recorded.', SECOND: 'Allergy status is not documented.'}
         self.calls, self.writes, self.receipts = [], [], []
         self.model_hook = self.catalog_hook = lambda: None
+        self.model = MODEL
         self.prices = {'prompt': '0', 'completion': '0', 'request': '0', 'image': '0'}
         self.reply = {'model': MODEL, 'choices': [{'finish_reason': 'stop', 'message': {'content': 'Profile context: symptoms are reported. Ask a clinician to reconcile the medication and allergy history before discussing options.'}}]}
 
@@ -34,7 +35,7 @@ class FakeNetwork:
         self.calls.append((url, method, body))
         if url == OPENROUTER + '/models':
             self.catalog_hook()
-            return encode({'data': [{'id': MODEL, 'pricing': self.prices}]})
+            return encode({'data': [{'id': self.model, 'pricing': self.prices}]})
         if url == OPENROUTER + '/chat/completions':
             self.model_hook()
             return encode(self.reply)
@@ -96,6 +97,28 @@ class MedicineTests(unittest.TestCase):
         for prices in ({'prompt': '0', 'completion': '.001'}, {'prompt': '0'}, {'prompt': 'NaN', 'completion': '0'}, {'prompt': '0', 'completion': '0', 'request': '1'}, {}):
             self.network.prices = prices
             self.assert_error('selected_model_not_available_free', lambda: self.app.analyze([FIRST]))
+        self.assertFalse(any(url.endswith('/chat/completions') for url, _, _ in self.network.calls))
+
+    def test_requested_sol_uses_capped_prices_without_fallback(self):
+        self.app.config.model = self.network.model = 'openai/gpt-6.1-sol'
+        self.network.reply['model'] = self.network.model
+        self.network.prices = {'prompt': '.000002', 'completion': '.00001', 'web_search': '.01'}
+        result = self.app.analyze([FIRST])
+        payload = next(body for url, _, body in self.network.calls if url.endswith('/chat/completions'))
+        self.assertEqual(result['model'], self.network.model)
+        self.assertEqual(payload['provider'], {'allow_fallbacks': False, 'max_price': {'prompt': 2, 'completion': 10, 'request': 0, 'image': 0}})
+        self.assertEqual(payload['reasoning'], {'effort': 'low', 'exclude': True})
+        self.assertNotIn('temperature', payload)
+
+    def test_sol_missing_or_over_budget_prices_stop_before_disclosure(self):
+        self.app.config.model = self.network.model = 'openai/gpt-6.1-sol'
+        for prices in ({}, None, {'prompt': '.000002'}, {'prompt': '.000003', 'completion': '.00001'},
+                       {'prompt': '.000002', 'completion': '.000011'}, {'prompt': '-1', 'completion': '0'},
+                       {'prompt': 'NaN', 'completion': '0'}, {'prompt': 'Infinity', 'completion': '0'},
+                       {'prompt': '0', 'completion': '0', 'request': '.01'}):
+            with self.subTest(prices=prices):
+                self.network.prices = prices
+                self.assert_error('selected_model_price_limit', lambda: self.app.analyze([FIRST]))
         self.assertFalse(any(url.endswith('/chat/completions') for url, _, _ in self.network.calls))
 
     def test_revocation_during_catalog_stops_disclosure(self):
