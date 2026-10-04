@@ -161,3 +161,39 @@ Each example uses its own in-page username/password login. Its local app credent
 `/api/owner/*` and `/api/v1/*` retain earlier structured-memory policy behavior for existing data and grants. Owner routes now require the patient role session, not the obsolete owner-code login. Old chat/inspector routes remain authenticated compatibility handlers but have no patient/developer navigation entry. New developer-created integrations are marked `recordApiOnly` and receive 403 on v1.
 
 The old context API, prepared text renditions, and pending legacy reports are not the new document contract. Do not build new integrations against them. Disconnecting through the patient UI or legacy path stops both generations; existing restrictions are not broadened by migration. Full historical v1 behavior remains in source/tests for compatibility, not as a second public integration tutorial.
+
+## Preserved Trial Explorer compatibility
+
+
+Trial Explorer currently evaluates three synthetic study records with deterministic predicates. It compares only `shared` items from the current policy projection; redacted and private values are treated as unknown. Results are potential information matches, not eligibility decisions or medical advice. No model or external trial registry is used.
+
+`POST /api/v1/trials/matches`
+
+Required scope: `facts:read`.
+
+```json
+{ "patientId": "patient-demo-001" }
+```
+
+Returns the policy version and each synthetic study's criteria as `met`, `not_met`, or `unknown`. Private item IDs and values are not returned. The medication-routine study may expose an unresolved medication criterion and permit a request for its single catalog-defined medication fact.
+
+`POST /api/v1/trials/requests`
+
+Required scope: `facts:read`.
+
+```json
+{ "patientId": "patient-demo-001", "studyId": "medication-routine-interviews" }
+```
+
+Creates a pending owner request and returns its opaque request ID. The server selects the fact from the study catalog; callers cannot choose an arbitrary item ID. Requests expire after 15 minutes. Duplicate open requests for the same integration and study are rejected.
+
+The owner reviews the exact fact and may approve or deny. Approval is bound to the integration, study, fact version, and current permission version. It does not change the saved connection grant. Approval expires after 15 minutes and is rejected if the fact or permission version changed before approval/use.
+
+`POST /api/v1/trials/requests/:requestId/use`
+
+Required scope: `facts:read`; bearer identity must match the requesting integration. No request body is required. An approved request returns exactly the one fact, then atomically changes its status to consumed. A later use returns `409 trial_request_used`; it is not included in later matching calls or ordinary context reads unless the saved grant independently permits it. Activity records the disclosure reference, not the value. This explicit owner-approved, single-use release is the only exception to the connection's standing disclosure projection.
+
+The patient-authenticated `/trials` compatibility page exposes matching, request creation, approval/denial, and one-time use. It uses the preserved legacy structured facts and permissions, separately from v2 document grants. Synthetic fixture values and listings must not be represented as real clinical-trial results.
+
+
+Patient-role owner routes: `POST /api/owner/trials/matches` with `integrationId`; `/api/owner/trials/requests` with `integrationId` and `studyId`; `/api/owner/trials/requests/:id/approve|deny` with `{}`; `/use` with `integrationId`. Same-Origin checks apply. New v2-only app credentials cannot call these v1 endpoints.

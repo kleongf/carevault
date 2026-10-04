@@ -70,7 +70,7 @@ worker/.venv/bin/python -m unittest discover -s examples/medicine-app -p 'test_*
 
 For processing changes, run the real worker benchmark and optional model tests described in worker/README.md. For integration changes, test real permission reads, provider boundaries, writeback, and revocation in addition to injected unit tests. For UI changes, inspect desktop/mobile layouts and keyboard/focus behavior. Documentation-only changes require source/evidence cross-checks, not unnecessary provider calls.
 
-The documented baseline is 50 Node tests, 22 worker tests with real runtime cases enabled, 14 X-ray tests, 21 medicine tests, typecheck, and build. Live provider/writeback/revocation checks and 30 real classifier executions are recorded in docs/VERIFICATION.md. Count/tests may grow; verify fresh results after changes. There is no lint script or configured CI workflow to claim as passing. A green narrow test does not prove the complete active goal.
+The documented baseline is 52 Node tests, 22 worker tests with real runtime cases enabled, 14 X-ray tests, 21 medicine tests, typecheck, and build. Live provider/writeback/revocation checks and 30 real classifier executions are recorded in docs/VERIFICATION.md. Count/tests may grow; verify fresh results after changes. There is no lint script or configured CI workflow to claim as passing. A green narrow test does not prove the complete active goal.
 
 ## Secrets, migration, and publishing
 
@@ -87,4 +87,14 @@ Duplicate configs appeared previously during iCloud sync errors. The user author
 
 Use a persistent server with private durable storage and a supervised single worker; do not deploy local SQLite to ephemeral Vercel storage. HTTPS reverse-proxy scheme/Host handling and Secure cookies must be verified in the actual deployment. Restrictive ownership, backups/restore, capacity monitoring, account recovery, credential operations, incident response, and applicable healthcare/legal evaluation are required before real data use. The prototype does not yet supply those operational guarantees.
 
-Update docs/VERIFICATION.md with actual evidence and outstanding work. Real inference/provider/writeback have been exercised; final browser checks and publishing still need the current completion audit. Do not mark the active goal complete while a required acceptance item remains unverified.
+Update docs/VERIFICATION.md with actual evidence and outstanding work. Real inference/provider/writeback have been exercised; browser acceptance and source publication are recorded in docs/VERIFICATION.md. Do not mark the active goal complete while a required acceptance item remains unverified.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

@@ -34,6 +34,19 @@ export interface ReleasedItem {
   verification?: string; sourceRefs?: string[];
 }
 export interface ContextResponse { requestId?: string; policyVersion: number; items: ReleasedItem[]; }
+export interface TrialCriterionResult { id: string; label: string; status: 'met' | 'not_met' | 'unknown'; }
+export interface TrialMatch {
+  studyId: string; title: string; sponsor: string; summary: string;
+  status: 'potential' | 'not_potential'; criteria: TrialCriterionResult[];
+  unresolvedCount: number; additionalFactRequestAvailable: boolean;
+}
+export interface TrialMatchesResponse { policyVersion: number; studies: TrialMatch[]; }
+export interface TrialFactRequest {
+  id: string; integrationId: string; patientId: string; studyId: string; factId: string;
+  factVersion: number; policyVersion: number;
+  status: 'pending' | 'approved' | 'denied' | 'consumed' | 'expired';
+  requestedAt: string; expiresAt: string; approvedAt?: string; usedAt?: string;
+}
 export interface Activity {
   id: string; actor: string; operation: string; outcome: string; detail: string;
   at: string; policyVersion?: number; itemIds: string[];
@@ -41,4 +54,5 @@ export interface Activity {
 export interface Dashboard {
   patient: { id: string; name: string; initials: string; subtitle: string };
   integrations: Integration[]; memories: MemoryItem[]; sources: Source[]; activity: Activity[];
+  trialRequests: TrialFactRequest[];
 }

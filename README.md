@@ -2,7 +2,7 @@
 
 A local, patient-controlled record vault for healthcare integrations. Patients upload documents and images, inspect extracted text and redacted copies, and choose exactly which records each external app can use. Apps can return attributed, unverified reports without gaining broader access.
 
-**Local prototype, final checks in progress — October 3, 2026.** The redesigned accounts/UI, private uploads, document worker, and both external apps are implemented. Real extraction/redacted exports, 30 classifier runs, free-model drafts, report writeback, and revocation have been exercised. Current checks: 50 Node tests, 22 worker tests including real runtime cases, 14 X-ray tests, 21 medicine tests, typecheck, and production build pass. Remaining browser checks and source publication are tracked in [verification](docs/VERIFICATION.md). These results establish demo mechanics, not clinical accuracy.
+**Verified local prototype — October 3, 2026.** The redesigned accounts/UI, private uploads, document worker, and both external apps are implemented. Real extraction/redacted exports, 30 classifier runs, free-model drafts, report writeback, and revocation have been exercised. Current checks: 52 Node tests, 22 worker tests including real runtime cases, 14 X-ray tests, 21 medicine tests, typecheck, and production build pass. Evidence and deployment limits are recorded in [verification](docs/VERIFICATION.md). These results establish demo mechanics, not clinical accuracy.
 
 Use fictional documents and attributed research images for this demo. This project is not a clinical decision system, universal de-identification tool, or HIPAA certification.
 
@@ -11,7 +11,7 @@ Use fictional documents and attributed research images for this demo. This proje
 Use Node 24 (recommended in `.nvmrc`); Node 22.13+ with `node:sqlite` is required.
 
 ```sh
-git clone https://github.com/kleongf/carevault.git
+git clone --branch carevault-records-and-integrations https://github.com/kleongf/carevault.git
 cd carevault
 npm ci
 npm run setup
@@ -82,6 +82,8 @@ Both example apps use an in-page login. Local app credentials are kept only in J
 
 New integrations should be created in the developer portal and use the [v2 API contract](docs/INTEGRATION-CONTRACT.md). Tokens authenticate apps; patient grants authorize records. Keep app tokens and `OPENROUTER_API_KEY` in each app's server environment. Python examples require explicit environment exports or a process supervisor; copying an `.env.example` alone does not load it. There is no automatic paid or replacement-model fallback. The earlier selected `stealth/space-bunny-alpha` was announced to retire October 5, 2026; verify current free availability before a live call.
 
+The teammate-built **Trial Explorer** is preserved at `http://127.0.0.1:3040/trials`, linked from its app card. It is a patient-authenticated compatibility page using legacy structured facts and a synthetic study catalog, including explicit single-use fact approvals. Its legacy permissions are separate from new document grants; no live trial registry or eligibility determination is provided.
+
 ## Architecture and files
 
 ```text
@@ -134,3 +136,5 @@ Live acceptance steps are tracked in [BUILD.md](docs/BUILD.md). Passing injected
 Local operation is the current deliverable. A later persistent Linux server can host Next.js, a single worker, SQLite, and private durable files behind HTTPS. It needs tested proxy/cookie settings, restrictive ownership, supervised processes, disk monitoring, backup/restore, and appropriate deployment/security review. Do not place this SQLite vault on ephemeral Vercel storage. The full path is in [PLAN.md](docs/PLAN.md#later-persistent-server-deployment).
 
 Source publication to [kleongf/carevault](https://github.com/kleongf/carevault) is authorized. Publishing source does not deploy the app or publish the local vault. Never commit environment secrets, passwords, tokens, uploads, databases, checkpoints, or private backups.
+
+This work is maintained on `carevault-records-and-integrations`; publishing it does not modify remote `main`. The working-machine login guide is private at `data/demo-logins.txt` when provisioned; it is excluded from Git. New checkouts generate their own credentials.

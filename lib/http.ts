@@ -138,6 +138,22 @@ export async function handleRequest(request: Request, injectedStore?: Store): Pr
       const input = method === 'GET' ? {} : await body(request);
       if (pathname === '/api/owner/chat/key' && method === 'POST') return json(setChatKey(store, input.key));
       if (pathname === '/api/owner/chat' && method === 'POST') { actor = 'Health companion'; return json(await chat(vault, input)); }
+      if (pathname === '/api/owner/trials/matches' && method === 'POST') {
+        if (typeof input.integrationId !== 'string') throw new ApiError(400, 'integration_required');
+        return json(vault.trialMatches(input.integrationId, 'patient-demo-001'));
+      }
+      if (pathname === '/api/owner/trials/requests' && method === 'POST') {
+        if (typeof input.integrationId !== 'string') throw new ApiError(400, 'integration_required');
+        return json(vault.requestTrialFact(input.integrationId, 'patient-demo-001', input.studyId), 201);
+      }
+      const ownerTrialRequest = pathname.match(/^\/api\/owner\/trials\/requests\/([a-f0-9-]+)\/(approve|deny|use)$/);
+      if (ownerTrialRequest && method === 'POST') {
+        if (ownerTrialRequest[2] === 'use') {
+          if (typeof input.integrationId !== 'string') throw new ApiError(400, 'integration_required');
+          return json(vault.consumeTrialFact(input.integrationId, ownerTrialRequest[1]));
+        }
+        return json(vault.decideTrialFactRequest(ownerTrialRequest[1], ownerTrialRequest[2] === 'approve'));
+      }
       const connection = pathname.match(/^\/api\/owner\/connections\/([a-zA-Z0-9-]+)(\/revoke)?$/);
       if (connection && !connection[2] && method === 'PUT') return json(vault.saveGrant(connection[1], input));
       if (connection?.[2] && method === 'POST') { vault.revoke(connection[1]); return json({ ok: true }); }
@@ -158,6 +174,16 @@ export async function handleRequest(request: Request, injectedStore?: Store): Pr
       const id = vault.authenticate(match?.[1] ?? ''); actor = vault.integration(id).name;
       if (vault.integration(id).recordApiOnly) throw new ApiError(403, 'record_api_required');
       if (pathname === '/api/v1/context' && method === 'POST') return json(vault.read(id, await body(request)));
+      if (pathname === '/api/v1/trials/matches' && method === 'POST') {
+        const input = await body(request);
+        return json(vault.trialMatches(id, input.patientId));
+      }
+      if (pathname === '/api/v1/trials/requests' && method === 'POST') {
+        const input = await body(request);
+        return json(vault.requestTrialFact(id, input.patientId, input.studyId), 201);
+      }
+      const trialRequest = pathname.match(/^\/api\/v1\/trials\/requests\/([a-f0-9-]+)\/use$/);
+      if (trialRequest && method === 'POST') return json(vault.consumeTrialFact(id, trialRequest[1]));
       if (pathname === '/api/v1/reports' && method === 'POST') return json(vault.report(id, await body(request)), 201);
       const report = pathname.match(/^\/api\/v1\/reports\/([a-zA-Z0-9-]+)$/);
       if (report && method === 'GET') return json(vault.readReport(id, report[1]));

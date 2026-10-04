@@ -67,7 +67,7 @@ New developer apps are marked v2-only. Disconnecting an app must disable both AP
 
 | Area | Current evidence | Remaining acceptance |
 | --- | --- | --- |
-| Roles, sessions, developer lifecycle | 50 Node tests; both role logins and developer registration/edit fields/API setup in browser | Credential modal inspected; lifecycle API-tested |
+| Roles, sessions, developer lifecycle | 52 Node tests; both role logins and developer registration/edit fields/API setup in browser | Credential modal inspected; lifecycle API-tested |
 | Uploads, grants, receipts, reports | Eight seeded records processed; real browser PDF upload; both apps' report/save/revoke flow; queued-job restart passed | Image preview verified |
 | Patient/developer UI split | PDF.js original/redacted canvas and text verified; developer 390px view has no horizontal overflow | Patient 390px view and final interaction checks passed |
 | Docling/OCR/redaction | 22 tests including real runtime; six benchmark fixtures; restart/corrupt-input check passed; known over-redaction documented | No general accuracy claim; final handoff |
@@ -92,3 +92,7 @@ A simple single-host deployment can retain this architecture:
 7. Re-run upload/extraction/export/permission/report/revocation tests after restore and after proxy configuration. Confirm restart recovery and actual persistence.
 
 Do not run this vault on ephemeral Vercel filesystem storage. Horizontal scaling, durable managed object storage, distributed jobs, automated backups, account recovery, and healthcare operations are separate future work. Before any identifiable healthcare deployment, assess applicable legal roles, vendor contracts, threat/security controls, redaction quality, clinical risks, and incident procedures. Current filesystem permissions are not an encryption-at-rest or compliance claim.
+
+## Concurrent Trial Explorer contribution
+
+Remote commits `397f9bc` and `e2e0072` introduced Trial Explorer during redesign verification. Preserve its synthetic matching, one-use fact approvals, APIs, tests, and styles. Its UI lives separately at `/trials` with patient-role authentication and the existing legacy permission editor; Records/Apps/Activity remain the main patient navigation. Trial Explorer continues to use legacy structured facts, not uploaded document text.

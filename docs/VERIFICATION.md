@@ -6,7 +6,7 @@ Evidence snapshot: **October 3, 2026**, local macOS ARM64. Core redesign and bot
 
 | Check | Recorded result | Scope |
 | --- | --- | --- |
-| `npm test` | 50 passed | Real temporary SQLite stores and HTTP/service behavior; provider responses injected in legacy chat tests |
+| `npm test` | 52 passed | Real temporary SQLite stores and HTTP/service behavior; provider responses injected in legacy chat tests |
 | `npm run typecheck` | Passed | Current TypeScript sources |
 | `npm run build` | Passed | Next.js production build, including PDF.js 6 canvas previews |
 | Fictional fixture generation | Five files, 233,743 bytes | Reproducible PDFs/photo, visible fictional labeling, source consistency |
@@ -81,7 +81,7 @@ Injected tests separately cover grant/content changes during asynchronous work, 
 - A stopped-worker test submitted a valid scanned PDF and a corrupt PDF through HTTP; both were observed queued. Restarting the worker produced ready and failed respectively. The valid redacted attachment was a PDF; the failed record's redacted route returned 409 without original fallback. Retained evidence is ignored at `test-results/restart-verified.json`.
 - An isolated backup restore/migration preserved 96 existing stored records. This validates that local restore/migration case, not an automated operational backup service. The active vault retained prior data/grants while eight demo records and two demo-only app grants were added.
 
-Remaining acceptance gates:
+Final acceptance checks:
 
 - [x] Patient NIH/image preview, 390-pixel layout, dialogs, sign-out, and failure states inspected.
 - [x] Developer credential modal inspected; issue/rotate/revoke verified separately through API tests.
@@ -95,3 +95,7 @@ Accounts and document records are added without resetting legacy memory, credent
 The private vault includes `credentials.json`, `vault.sqlite`, SQLite sidecars, and `documents/`. Stop all writers before a consistent directory backup; preserve credentials and ownership with the files. An isolated local restore/migration was tested as described above; deployment-specific restore and operational backup procedures still require validation. Initial demo passwords are deliberately retained in the private operator credentials file; the app does not claim encryption at rest or secret-manager lifecycle.
 
 This is local operation, not a public deployment. HTTPS proxy behavior, Secure cookies in that deployment, operating-system ownership, backups, monitoring, account recovery, multi-tenant identity, and applicable healthcare/compliance operations are not established by these local checks. Do not put the vault on ephemeral Vercel storage. Source publication to the authorized GitHub remote does not publish or deploy local patient data.
+
+## Concurrent remote work and branch delivery
+
+The teammate Trial Explorer contribution from `origin/main` (`397f9bc`, `e2e0072`) is preserved on the feature branch. Its APIs and two tests remain intact; the patient-only `/trials` compatibility page uses its original legacy permission and one-use approval behavior. Browser checks verified developer exclusion and patient sign-in/page rendering. A focused review and additional authorization probes found no v2/legacy bypass. The combined 52-test Node suite, typecheck, and production build passed. Publication targets only `carevault-records-and-integrations`, as requested; remote main is not changed by this work.
