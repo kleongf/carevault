@@ -209,35 +209,53 @@ test('xray Markdown headings and lists render without executing image text', asy
 });
 
 
-for (const outcome of ['success', 'failure', 'logout'] as const) {
-  test(`xray generation spinner resets after ${outcome}`, async ({ page }, info) => {
-    const state = await mockedApp(page, 'xray');
+for (const app of ['xray', 'medicine'] as const) for (const outcome of ['success', 'failure', 'logout'] as const) {
+  test(`${app} generation spinner resets after ${outcome}`, async ({ page }, info) => {
+    const state = await mockedApp(page, app);
+    const button = app === 'xray' ? 'analyze' : 'generate';
     let release!: () => void;
     state.analysisGate = new Promise<void>(resolve => { release = resolve; });
-    if (outcome === 'failure') state.failure = { path: '/api/analyze', status: 503, error: 'selected_model_no_vision' };
-    await signIn(page, 'xray');
-    await selectContext(page, 'xray');
-    await page.locator('#analyze').click();
-    await expect(page.locator('#analyze')).toHaveAttribute('aria-busy', 'true');
-    await expect(page.locator('#analyze')).toBeDisabled();
-    await expect(page.locator('#analyze-spinner')).toBeVisible();
-    await expect(page.locator('#analyze-icon')).toBeHidden();
-    await expect(page.locator('#analyze')).toContainText('Generating report');
-    await expect(page.locator('#image')).toBeDisabled();
-    if (outcome === 'success') await page.screenshot({ path: info.outputPath('xray-generating.png'), fullPage: true });
+    if (outcome === 'failure') state.failure = { path: '/api/analyze', status: 503, error: 'selected_model_price_limit' };
+    await signIn(page, app);
+    await selectContext(page, app);
+    await page.locator(`#${button}`).click();
+    await expect(page.locator(`#${button}`)).toHaveAttribute('aria-busy', 'true');
+    await expect(page.locator(`#${button}`)).toBeDisabled();
+    await expect(page.locator(`#${button}-spinner`)).toBeVisible();
+    await expect(page.locator(`#${button}-icon`)).toBeHidden();
+    await expect(page.locator(`#${button}`)).toContainText('Generating report');
+    await expect(page.locator(app === 'xray' ? '#image' : '#records input').first()).toBeDisabled();
+    if (outcome === 'success') await page.screenshot({ path: info.outputPath(`${app}-generating.png`), fullPage: true });
     if (outcome === 'logout') await page.getByRole('button', { name: 'Sign out', exact: true }).click();
     release();
-    await expect(page.locator('#analyze')).toHaveAttribute('aria-busy', 'false');
-    await expect(page.locator('#analyze-spinner')).toBeHidden();
-    await expect(page.locator('#analyze-label')).toHaveText('Analyze image');
+    await expect(page.locator(`#${button}`)).toHaveAttribute('aria-busy', 'false');
+    await expect(page.locator(`#${button}-spinner`)).toBeHidden();
+    await expect(page.locator(`#${button}-label`)).toHaveText(app === 'xray' ? 'Analyze image' : 'Create discussion');
     if (outcome === 'logout') {
       await expect(page.locator('#workspace')).toBeHidden();
-      await signIn(page, 'xray');
+      await signIn(page, app);
       await expect(page.locator('#report')).toBeEmpty();
     } else {
-      await expect(page.locator('#analyze')).toBeEnabled();
+      await expect(page.locator(`#${button}`)).toBeEnabled();
       if (outcome === 'failure') await expect(page.locator('#save')).toBeDisabled();
       else await expect(page.locator('#save')).toBeEnabled();
     }
   });
 }
+
+
+test('medicine Markdown report renders headings, emphasis and citations safely', async ({ page }, info) => {
+  const state = await mockedApp(page, 'medicine');
+  state.report = '# Medicine discussion\n\n**UNVERIFIED — clinician review required**\n\n## Profile context\n\n- **Reported symptom**: cough (`fixture-note`).\n\n## Options to discuss\n\n- Insufficient information to suggest a medication.\n\n## Missing information and questions\n\n- Clarify current medicines and allergies.\n- <img src=x onerror="window.injected=true">';
+  await signIn(page, 'medicine');
+  await selectContext(page, 'medicine');
+  await page.locator('#generate').click();
+  await expect(page.locator('#report').getByRole('heading', { name: 'Profile context' })).toBeVisible();
+  await expect(page.locator('#report strong').first()).toHaveText('UNVERIFIED — clinician review required');
+  await expect(page.locator('#report code')).toHaveText('fixture-note');
+  await expect(page.locator('#report ul')).toHaveCount(3);
+  await expect(page.locator('#report img')).toHaveCount(0);
+  expect(await page.evaluate(() => (window as Window & { injected?: boolean }).injected)).toBeUndefined();
+  expect(state.blocked).toEqual([]);
+  await page.screenshot({ path: info.outputPath('medicine-markdown.png'), fullPage: true });
+});

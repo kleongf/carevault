@@ -73,3 +73,10 @@ Later hosting needs a production application server, HTTPS, real identity/sessio
 ## Live verification — October 3, 2026
 
 Using three authorized fictional respiratory records, the real `stealth/space-bunny-alpha` model completed a discussion in 25.1 seconds. The app read only redacted text, wrote a source-linked report that processed successfully and remained unshared, returned the same ID on duplicate save, and was denied after revocation. A separate browser run verified the in-page login, context preview, live generation, and explicit save. The model identified insufficient medication history and asked for clarification rather than inventing a drug recommendation. This validates the integration workflow, not clinical recommendation quality.
+
+
+### Markdown reports and generation feedback
+
+The prompt requests `## Profile context`, `## Options to discuss`, and `## Missing information and questions`, with concise bullets, restrained bold emphasis, and inline-code record citations. The existing safe Markdown renderer uses text nodes; HTML is not executed. Source records and provenance are appended as Markdown. Medical uncertainty and clinician-review requirements remain unchanged.
+
+During generation, the button shows a spinner and “Generating report…”. Success and errors restore controls; sign-out cancels the browser request and clears private UI state. Cancellation does not cancel already-started server/provider work or recall disclosed text. Animation respects reduced-motion preferences.

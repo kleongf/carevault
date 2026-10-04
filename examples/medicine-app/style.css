@@ -33,3 +33,5 @@ button svg,a svg{width:18px;height:18px;flex-shrink:0}.icon-button{display:inlin
 #report code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em;background:#f4f7f4;padding:0 4px;border-radius:4px;overflow-wrap:anywhere}
 #report:focus-visible{outline:3px solid #5a9c7c;outline-offset:3px}
 @media(max-width:740px){.app-summary{margin-bottom:14px}.tabs .tab{flex:1 1 calc(50% - 8px)}}
+
+.spinner{width:18px;height:18px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:report-spin .8s linear infinite;flex-shrink:0}button[aria-busy="true"]:disabled{opacity:1;cursor:progress}@keyframes report-spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.spinner{animation:none}}

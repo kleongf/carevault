@@ -70,6 +70,10 @@ class MedicineTests(unittest.TestCase):
     def test_profile_is_only_redacted_selected_text_with_special_prompt(self):
         result = self.app.analyze([FIRST])
         self.assertIn('UNVERIFIED', result['report'])
+        self.assertTrue(result['report'].startswith('# Medicine discussion'))
+        self.assertIn('## Source records (redacted text)', result['report'])
+        self.assertIn(f'- `{FIRST}`', result['report'])
+        self.assertIn('well-formatted Markdown', PROMPT)
         self.assertEqual(result['sourceIds'], [FIRST])
         self.assertNotIn(SECOND, result['report'])
         payload = next(body for url, _, body in self.network.calls if url.endswith('/chat/completions'))

@@ -4,6 +4,8 @@ let selected = new Set();
 let described = new Map();
 let draftId = null;
 let busy = false;
+let generating = false;
+let session = new AbortController();
 let authorization = null;
 const errors = {
   sign_in_required: 'The username or password was not accepted. Please sign in again.',
@@ -192,21 +194,29 @@ function controls() {
   for (const control of document.querySelectorAll('button, input')) control.disabled = busy;
   $('preview').disabled = busy || !selected.size;
   $('generate').disabled = busy || !selected.size;
+  $('generate').setAttribute('aria-busy', String(generating));
+  $('generate-spinner').hidden = !generating;
+  $('generate-icon').toggleAttribute('hidden', generating);
+  $('generate-label').textContent = generating ? 'Generating report…' : 'Create discussion';
+  $('logout').disabled = false;
   $('save').disabled = busy || !draftId;
 }
 async function api(path, body) {
-  const response = await fetch(path, { method: body ? 'POST' : 'GET', credentials: 'omit', cache: 'no-store', headers: { Authorization: authorization || '', 'X-Requested-With': 'CareVaultDemo', ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  const activeSession = session;
+  const response = await fetch(path, { signal: activeSession.signal, method: body ? 'POST' : 'GET', credentials: 'omit', cache: 'no-store', headers: { Authorization: authorization || '', 'X-Requested-With': 'CareVaultDemo', ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
   const result = await response.json();
+  if (session !== activeSession) throw new DOMException('Session ended', 'AbortError');
   if (response.status === 401) signOut();
   if (!response.ok) throw new Error(errors[result.error] || 'The request could not be completed. Refresh and try again.');
   return result;
 }
-async function action(task) {
+async function action(task, generation = false) {
   if (busy) return;
-  busy = true; controls();
+  const activeSession = session;
+  busy = true; generating = generation; controls();
   try { await task(); }
-  catch (error) { resetDraft(); resetContext(); status(error.message, true); }
-  finally { busy = false; controls(); }
+  catch (error) { if (error.name !== 'AbortError' && (session === activeSession || !authorization)) { resetDraft(); resetContext(); status(error.message, true); } }
+  finally { if (session === activeSession) { busy = false; generating = false; controls(); } }
 }
 async function refresh() {
   resetDraft(); resetContext(); selected = new Set(); described = new Map();
@@ -282,20 +292,21 @@ $('preview').addEventListener('click', () => action(async () => {
   if (!$('preview-dialog').open) $('preview-dialog').showModal(); status('');
 }));
 $('generate').addEventListener('click', () => action(async () => {
-  resetDraft(); status('Creating discussion…');
+  resetDraft(); status('');
   const result = await api('/api/analyze', { recordIds: [...selected] });
   draftId = result.draftId; renderMarkdown($('report'), result.report); $('report').hidden = false; $('empty').hidden = true; $('report-actions').hidden = false;
   status('Draft ready.'); $('report').focus();
-}));
+}, true));
 $('save').addEventListener('click', () => action(async () => {
   status('Saving report to CareVault…');
   await api('/api/save', { draftId }); draftId = null;
   status('Saved to CareVault · Unshared.'); $('report-actions').hidden = true;
 }));
 function signOut() {
+  session.abort(); session = new AbortController(); busy = false; generating = false;
   authorization = null; selected = new Set(); described = new Map(); resetDraft(); resetContext();
   $('records').replaceChildren(); $('password').value = ''; $('username').value = '';
-  $('workspace').hidden = true; $('login-panel').hidden = false; $('logout').hidden = true;
+  $('workspace').hidden = true; $('login-panel').hidden = false; $('logout').hidden = true; controls();
 }
 $('login-form').addEventListener('submit', (event) => {
   event.preventDefault();

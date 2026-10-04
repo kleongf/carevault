@@ -164,3 +164,13 @@ Evidence:
 - Independent read-only security review found no actionable findings in the vision change. JavaScript syntax and diff whitespace checks passed. No dependency, schema, API request shape, or main-app build changes; Next/worker suites were not rerun for this isolated demo-app change.
 
 Restart only the X-ray app to activate; refresh its browser tab. Existing vault data and saved reports require no migration. Reverting this change restores scores-only model input after restarting the X-ray app; previously sent images cannot be recalled.
+
+
+## Medicine Markdown and loader — October 4, 2026
+
+Medicine Review now requests structured Markdown with Profile context, Options to discuss, and Missing information and questions. Sources and provenance use Markdown too. The generation button shows a spinner and busy state; sign-out aborts pending browser requests and prevents responses from a prior session from restoring private UI. Existing server permission checks and clinical prompt restrictions are unchanged.
+
+- Medicine Python suite: **25 passed**. Existing permission, prompt restrictions, writeback, pricing, and HTTP tests remain green; report assertions now check Markdown source formatting.
+- Medicine desktop/mobile Playwright subset: **16 passed**, using the shipped static UI and mocked APIs with the temporary no-Next-server config documented above. Covers headings, citations, escaped malicious HTML, loader success/error/sign-out, login, previews, save, empty grants, and provider failures. Mobile loader and desktop Markdown screenshots inspected.
+- One real Sol completion through the app core using injected synthetic text returned all three requested headings, `finish_reason=stop`, 735 total tokens, and reported cost **$0.003902**. No report was saved or patient vault content used.
+- JavaScript syntax and diff checks passed. Medicine server restarted on 3043; no schema/dependency/main-app changes or migration. No clinical-output validation is claimed. Main Next/worker suites were not rerun for this standalone app change.
