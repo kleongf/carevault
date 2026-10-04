@@ -1,6 +1,6 @@
 # Verification and handoff
 
-Evidence snapshot: **October 3, 2026**, local macOS ARM64. Core redesign and both external integration flows have real runtime and browser evidence. Final patient image/mobile and credential-modal inspection plus source publication remain open at this snapshot. These checks demonstrate a local prototype, not clinical accuracy, universal de-identification, or public-hosting readiness.
+Evidence snapshot: **October 3, 2026**, local macOS ARM64. Core redesign and both external integration flows have real runtime and browser evidence. Patient/developer desktop and narrow-screen checks, credential-modal inspection, and source publication are complete. These checks demonstrate a local prototype, not clinical accuracy, universal de-identification, or public-hosting readiness.
 
 ## Completed baseline
 
@@ -85,7 +85,7 @@ Final acceptance checks:
 
 - [x] Patient NIH/image preview, 390-pixel layout, dialogs, sign-out, and failure states inspected.
 - [x] Developer credential modal inspected; issue/rotate/revoke verified separately through API tests.
-- [ ] Final source/secret/diff review and authorized Git push.
+- [x] Source/secret/diff review completed and feature branch published to the authorized remote (`19c8d02`, followed by this documentation update).
 
 Earlier owner-code/chat-era browser evidence is not used to prove the redesign. New live checks above are recorded separately.
 ## Storage, migration, and deployment limits
@@ -99,3 +99,7 @@ This is local operation, not a public deployment. HTTPS proxy behavior, Secure c
 ## Concurrent remote work and branch delivery
 
 The teammate Trial Explorer contribution from `origin/main` (`397f9bc`, `e2e0072`) is preserved on the feature branch. Its APIs and two tests remain intact; the patient-only `/trials` compatibility page uses its original legacy permission and one-use approval behavior. Browser checks verified developer exclusion and patient sign-in/page rendering. A focused review and additional authorization probes found no v2/legacy bypass. The combined 52-test Node suite, typecheck, and production build passed. Publication targets only `carevault-records-and-integrations`, as requested; remote main is not changed by this work.
+
+## Handoff verdict
+
+Ready for the local synthetic-data hackathon demo, with the documented OCR/redaction/model limitations. All 109 automated tests passed (52 Node, 22 worker, 14 X-ray, 21 medicine), together with typecheck and production build. Configured credentials, private vault data, generated files, and weights were excluded from source publication. Both example servers are configured against the preserved local vault; their current read scopes include three fictional text documents and one attributed research X-ray respectively. Public hosting and clinical validation remain outside this delivery.

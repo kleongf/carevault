@@ -65,17 +65,17 @@ New developer apps are marked v2-only. Disconnecting an app must disable both AP
 
 ## Delivery ledger
 
-| Area | Current evidence | Remaining acceptance |
+| Area | Current evidence | Handoff note |
 | --- | --- | --- |
 | Roles, sessions, developer lifecycle | 52 Node tests; both role logins and developer registration/edit fields/API setup in browser | Credential modal inspected; lifecycle API-tested |
 | Uploads, grants, receipts, reports | Eight seeded records processed; real browser PDF upload; both apps' report/save/revoke flow; queued-job restart passed | Image preview verified |
 | Patient/developer UI split | PDF.js original/redacted canvas and text verified; developer 390px view has no horizontal overflow | Patient 390px view and final interaction checks passed |
-| Docling/OCR/redaction | 22 tests including real runtime; six benchmark fixtures; restart/corrupt-input check passed; known over-redaction documented | No general accuracy claim; final handoff |
+| Docling/OCR/redaction | 22 tests including real runtime; six benchmark fixtures; restart/corrupt-input check passed; known over-redaction documented | No general accuracy claim |
 | Demo documents and NIH images | Provenance/hash evidence; second seeding run imported zero | Patient NIH image/provenance preview verified |
 | X-ray integration | 14 tests, 30 real inferences, live free-model/browser writeback and revocation | Local demo verified; no clinical validation |
 | Medicine integration | 21 tests, live free-model/browser writeback and revocation | Local demo verified; no clinical validation |
-| Migration and restore | Isolated restore/migration preserved 96 existing stored records | Preserve final private backup; no automated backup claim |
-| Publishing | Authorized source remote | Final secret/diff checks and normal push |
+| Migration and restore | Isolated restore/migration preserved 96 existing stored records | Private backup retained; no automated backup claim |
+| Publishing | Feature branch published; secrets and generated artifacts excluded | Remote main unchanged |
 
 Do not treat this table as completion evidence for future changes. Update it only after examining the relevant current output.
 

@@ -1,6 +1,6 @@
 # Implementation and acceptance board
 
-The current target is the approved record-based CareVault redesign plus separate X-ray and medicine example apps. The old 12-hour/chat/owner-inspector plan is superseded. Code is in progress; [VERIFICATION.md](VERIFICATION.md) records completed checks.
+The current target is the approved record-based CareVault redesign plus separate X-ray and medicine example apps. The old 12-hour/chat/owner-inspector plan is superseded. Local implementation and verification are complete; [VERIFICATION.md](VERIFICATION.md) records completed checks.
 
 ## Build sequence
 
@@ -61,7 +61,7 @@ Run against a separate synthetic validation vault where practical. Never reset t
 - [x] Isolated restore/migration preserved 96 existing stored records. Real-vault demo import added eight records and two example-app grants limited to demo files without changing existing grants.
 - [x] Live stopped-worker test queued a valid scan and corrupt PDF; after restart they became ready/failed respectively. Valid redacted attachment succeeded and failed redacted read returned 409.
 - [x] Patient mobile, login error, dialog Escape, failed processing, page navigation, selected grants, and browser revocation checked.
-- [ ] Complete final secret/diff review and publish normal commits to the authorized GitHub remote.
+- [x] Secret/diff review complete; published `carevault-records-and-integrations` without updating remote main.
 
 ## Five-minute demonstration
 

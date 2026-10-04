@@ -33,6 +33,7 @@ Use docs/BUILD.md acceptance checks. Distinguish implemented code, injected test
 - `lib/store.ts` owns SQLite and additive account/registration migrations. `scripts/seed-records.ts` imports demonstration files idempotently without grants or resets.
 - `worker/` owns parsing/OCR/redaction, safe publication, restart recovery, and benchmarks. Read worker/README.md before changing runtime options or dependencies.
 - `examples/xray-app/` owns the image integration; `examples/medicine-app/` is the separately requested medicine wrapper. Verify each app's actual README/tests before claiming readiness.
+- `app/trials/page.tsx`, `components/carevault/trial-explorer.tsx`, and `lib/trials.ts` preserve the concurrently contributed synthetic Trial Explorer. Keep it patient-only and separate from the main navigation; its legacy one-use fact approvals must remain isolated from v2 document access.
 - `lib/policy.ts`, `lib/service.ts`, and `lib/chat.ts` retain legacy compatibility. They are not the new UI. Preserve existing restrictions and old data.
 - `demo/` manifests distinguish fictional documents from real NIH research subjects. Never attribute NIH images to the fictional patient.
 
