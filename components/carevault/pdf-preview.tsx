@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { PDFDocumentLoadingTask, PDFDocumentProxy } from 'pdfjs-dist';
 import { Button } from '../ui/button';
 
@@ -21,7 +22,7 @@ export function PdfPreview({ url }: { url: string }) {
       const loaded = await task.promise;
       if (loaded.numPages > 30) throw new Error('page limit');
       if (!cancelled) setDocument(loaded);
-    }).catch(() => { if (!cancelled) { setError('Preview unavailable. You can still download the file.'); setLoading(false); } });
+    }).catch(() => { if (!cancelled) { setError('Preview unavailable. Download the file to view it.'); setLoading(false); } });
     return () => { cancelled = true; void task?.destroy(); };
   }, [url]);
   useEffect(() => {
@@ -42,7 +43,7 @@ export function PdfPreview({ url }: { url: string }) {
   }, [document, page]);
   return <div className="pdf-viewer">
     {error ? <p role="alert">{error}</p> : <>
-      <div className="pdf-controls"><Button variant="outline" size="sm" disabled={!document || page <= 1 || loading} onClick={() => setPage(page - 1)}>Previous</Button><span>{document ? `Page ${page} of ${document.numPages}` : 'Loading PDF…'}</span><Button variant="outline" size="sm" disabled={!document || page >= document.numPages || loading} onClick={() => setPage(page + 1)}>Next</Button></div>
+      <div className="pdf-controls"><Button variant="outline" size="icon" aria-label="Previous page" title="Previous page" disabled={!document || page <= 1 || loading} onClick={() => setPage(page - 1)}><ChevronLeft size={16} /></Button><span aria-live="polite">{document ? `Page ${page} of ${document.numPages}` : 'Loading PDF…'}</span><Button variant="outline" size="icon" aria-label="Next page" title="Next page" disabled={!document || page >= document.numPages || loading} onClick={() => setPage(page + 1)}><ChevronRight size={16} /></Button></div>
       {loading && <p role="status">Rendering…</p>}
       <canvas ref={canvas} role="img" aria-label={`PDF page ${page}`} />
     </>}

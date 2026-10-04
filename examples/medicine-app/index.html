@@ -2,13 +2,11 @@
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Medicine Review · CareVault</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
 <body>
-<header><a class="brand" href="/">M<span>Medicine Review</span></a><div class="header-actions"><span class="badge">Personalized medicine demo</span><button id="logout" class="quiet" type="button" hidden>Sign out</button></div></header>
+<header><a class="brand" href="/">M<h1>Medicine Review</h1></a><div class="header-actions"><details class="about" id="data-usage"><summary class="icon-button" aria-label="About and data usage" title="About and data usage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></summary><div class="about-content"><p>Research demo. Unverified suggestions require clinician review.</p><p>Selected redacted text goes to OpenRouter and its provider. Use synthetic data.</p><p>Not a diagnosis, prescription, or medication safety check. Saved reports remain unshared.</p></div></details><a class="quiet icon-button" href="http://127.0.0.1:3040/" target="_blank" rel="noreferrer" aria-label="Open CareVault" title="Open CareVault"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M10 5H5v14h14v-5"/></svg></a><button id="logout" class="quiet icon-button" type="button" aria-label="Sign out" title="Sign out" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H5v14h4M14 8l4 4-4 4M8 12h10"/></svg></button></div></header>
 <main>
-  <div class="intro"><p class="eyebrow">YOUR RECORDS. YOUR PERMISSION.</p><h1>A more personal treatment conversation.</h1><p>Turn shared records into medication options and questions to discuss with your clinician.</p></div>
   <div id="status" role="status" aria-live="polite"></div>
   <section id="login-panel" class="card login-card" aria-labelledby="login-title">
-    <h2 id="login-title">Sign in to Medicine Review</h2>
-    <p class="muted">Use this app’s local credentials.</p>
+    <h2 id="login-title">Sign in</h2>
     <form id="login-form">
       <label for="username">Username</label><input id="username" name="username" autocomplete="username" maxlength="100" required>
       <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" maxlength="256" required>
@@ -16,21 +14,17 @@
     </form>
   </section>
   <div id="workspace" class="layout" hidden>
-    <section class="card sources" aria-labelledby="sources-title"><div class="section-top"><h2 id="sources-title">1. Select context</h2><button id="refresh" class="quiet" type="button">Refresh</button></div>
-      <p class="muted">Only records you shared with this app appear. Select up to 10.</p>
-      <div id="records"><p>Loading shared records…</p></div>
-      <button id="preview" class="secondary" disabled type="button">View shared text</button>
-      <details id="context-panel" hidden><summary>Text available to this app</summary><div id="context"></div></details>
-      <div class="privacy-note">Generation sends selected redacted text to OpenRouter and its model provider. Use synthetic records for this demo.</div>
-      <button id="generate" class="primary" disabled type="button">Create medicine discussion <span aria-hidden="true">↗</span></button>
+    <section class="card sources" aria-labelledby="sources-title"><div class="section-top"><h2 id="sources-title">Shared records</h2><button id="refresh" class="quiet icon-button" type="button" aria-label="Refresh" title="Refresh shared records"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5"/><path d="M4 17v-5h5"/><path d="M6.1 7a7 7 0 0 1 11.5-2L20 8M4 16l2.4 3A7 7 0 0 0 18 17"/></svg></button></div>
+      <div id="records"><p>Loading…</p></div>
+      <button id="preview" class="secondary" disabled type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg><span>Preview text</span></button>
+      <details id="context-panel" hidden><summary>Shared text</summary><div id="context"></div></details>
+      <button id="generate" class="primary" disabled type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></svg><span>Create discussion</span></button>
     </section>
-    <section class="card output" aria-labelledby="output-title"><div class="section-top"><h2 id="output-title">2. Review discussion</h2><span class="badge">Unverified</span></div>
-      <p class="muted">Options for a clinician to review. No prescriptions or medication changes.</p>
-      <div id="empty"><span aria-hidden="true">✳</span><h3>Start with your shared profile</h3><p>Select a visit note or medication history.<br>The draft will highlight context, options, and unanswered questions.</p></div>
+    <section class="card output" aria-labelledby="output-title"><div class="section-top"><h2 id="output-title">Discussion</h2><span class="badge">Unverified</span></div>
+      <div id="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z"/></svg><p>No report</p></div>
       <pre id="report" hidden tabindex="0" aria-label="Unverified medicine discussion"></pre>
-      <div id="report-actions" hidden><button id="save" class="primary" type="button">Save report to CareVault</button><p class="muted">Saved reports remain unshared until you grant access.</p></div>
+      <div id="report-actions" hidden><button id="save" class="primary" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4"/></svg><span>Save to CareVault</span></button></div>
     </section>
   </div>
-  <footer>Research prototype · Not a diagnosis, prescription, or medication safety check.</footer>
 </main>
 </body></html>

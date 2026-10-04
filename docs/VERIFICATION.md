@@ -19,6 +19,18 @@ Evidence snapshot: **October 3, 2026**, local macOS ARM64. Core redesign and bot
 | Live external integration flows | Passed for both apps | Real free-model draft, v2 writeback, worker ready, unshared arrival, repeat save, and revocation |
 | Live worker restart | Passed | Queued valid scan became ready; corrupt PDF failed; failed redacted read returned 409 |
 
+## Minimal UI and Playwright follow-up
+
+The October 3 UI follow-up installed `@playwright/test` 1.63.0 and Chromium. Final `npm run test:browser` passed **30/30 cases in 24.4 seconds**, after its production build passed. Typecheck and whitespace checks passed. The 52 Node tests and the 21 medicine / 14 X-ray Python tests also passed during this change. Worker code was unchanged; its 22-test real-runtime result above was not rerun for this UI-only follow-up.
+
+- **14 vault browser cases:** seven journeys at desktop 1280×900 and mobile 390×844. Actual role login/logout and denied role access; search; valid PDF canvas pixels, paging, keyboard tabs and downloads; image preview; queued/failed states; invalid/oversized uploads and preset persistence; independent representation grants; real v2 report writeback and future-access revocation; developer registration/edit, credential reveal/hide/rotation/revocation; API disclosures; Trial Explorer preview, one-use approval/use, denial and revocation. Dialog focus return and horizontal overflow are checked. A failed initial dashboard request now has a tested Retry action.
+- **16 integration browser cases:** eight journeys at both sizes using shipped static files and fully mocked APIs. Login errors, credential clearing, no browser storage, source selection/preview, escaped model text, explicit save, denied/revoked context, empty grants, unavailable free model, logout/reload, and data-usage disclosures. These tests make no model or inference calls.
+- The test server creates its own temporary SQLite store, synthetic passwords, valid two-page PDF, tiny PNG, and prepared text/redacted outputs. It clears its provider key and refuses an existing server on 3140. Uploads persist through browser reload but deliberately remain queued without the worker. This establishes UI and HTTP behavior, not new OCR/redaction accuracy evidence.
+- Text was reduced across patient/developer workspaces, Trial Explorer, and both separate apps. Descriptions and reference material now expand from Info controls or API sections. Permission labels, exact facts awaiting approval, and unverified status remain available. Icons have accessible names; dialog openers regain focus.
+- Browser checks caught a mobile X-ray Info panel covering its own toggle; its position was corrected and opening/closing passed afterward. They also guard against an incorrect Retry accessible name. Final screenshots of PDF views, Apps, developer setup, Trial Explorer, and both app workspaces were retained under ignored `test-results/` for visual inspection.
+
+Scope: Chromium desktop and emulated mobile only, not Firefox/WebKit or a complete screen-reader/accessibility audit. Earlier real classifier/provider evidence remains separate from these mocked integration browser tests. The repeatable command and report viewer are documented in README.md.
+
 Node verification used Node 26.8.1; Node 24 is recommended but was not separately established by these runs. The worker benchmark used Python 3.12.14 on macOS 15.5 ARM64. Do not infer coverage of other operating systems or deployment configurations.
 
 ## Node behavior covered
@@ -74,7 +86,7 @@ Injected tests separately cover grant/content changes during asynchronous work, 
 
 ## Browser, restart, and migration evidence
 
-- Both seeded CareVault role logins worked. Developer registration, edit fields, credential modal, and API setup were inspected. Credential issue/rotate/revoke is API-tested; no browser-issued credential is claimed here.
+- Both seeded CareVault role logins worked. Developer registration, edit fields, credential modal, and API setup were inspected in the initial manual pass. The Playwright follow-up above now also verifies credential issue/rotate/revoke through the browser.
 - Patient PDF Original, Extracted text, and Redacted copy were inspected. PDF.js 6 rendered the original and redacted pages on canvas. A browser-uploaded PDF moved from queued to ready.
 - Both external apps' source/image previews, live generation, and save flows succeeded in the browser.
 - Patient and developer layouts at a 390-pixel viewport were inspected without horizontal overflow. NIH image previews displayed their research provenance; the five-page PDF viewer advanced to page two. Login errors, sign-out, Escape-to-close, processing failure, selected permissions, and browser revocation were exercised. A full accessibility or cross-browser audit is not claimed.
@@ -84,7 +96,7 @@ Injected tests separately cover grant/content changes during asynchronous work, 
 Final acceptance checks:
 
 - [x] Patient NIH/image preview, 390-pixel layout, dialogs, sign-out, and failure states inspected.
-- [x] Developer credential modal inspected; issue/rotate/revoke verified separately through API tests.
+- [x] Developer credential modal and issue/rotate/revoke verified through browser and API tests.
 - [x] Source/secret/diff review completed and feature branch published to the authorized remote (`19c8d02`, followed by this documentation update).
 
 Earlier owner-code/chat-era browser evidence is not used to prove the redesign. New live checks above are recorded separately.

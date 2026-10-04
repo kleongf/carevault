@@ -31,7 +31,7 @@ async function refresh() {
     $('image').replaceChildren();
     records.forEach((record,index) => { const option=document.createElement('option'); option.value=record.id; option.textContent=`Shared image ${index+1} · ${record.id.slice(0,8)}`; $('image').append(option); });
     if (!records.length) { const option=document.createElement('option'); option.value=''; option.textContent='No images shared'; $('image').append(option); }
-    await selectImage(); if(authorization) status(records.length ? '' : 'Connect this app and select an image in CareVault.');
+    await selectImage(); if(authorization) status('');
   } catch(error) { showError(error); }
 }
 async function selectImage() {

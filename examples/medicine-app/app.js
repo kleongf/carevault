@@ -48,39 +48,39 @@ async function refresh() {
   const { records } = await api('/api/records');
   if (!records.length) {
     const message = document.createElement('p'); message.className = 'muted';
-    message.textContent = 'No text records shared yet. In CareVault → Apps, connect Medicine Review and allow text access to a processed document.';
+    message.textContent = 'No shared records';
     $('records').append(message);
   }
   records.forEach((record, index) => {
     const label = document.createElement('label'); label.className = 'record';
     const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.value = record.id;
-    const text = document.createElement('span'); const title = document.createElement('strong'); const id = document.createElement('small');
-    title.textContent = `${record.kind === 'report' ? 'Report' : 'Record'} ${index + 1}`; id.textContent = record.id; text.append(title, id); label.append(checkbox, text); $('records').append(label);
+    const text = document.createElement('span'); const title = document.createElement('strong');
+    title.textContent = `${record.kind === 'report' ? 'Report' : 'Record'} ${index + 1}`; label.title = record.id; text.append(title); label.append(checkbox, text); $('records').append(label);
     checkbox.addEventListener('change', () => {
       if (checkbox.checked && selected.size >= 10) { checkbox.checked = false; status('Select at most 10 records.', true); return; }
       checkbox.checked ? selected.add(record.id) : selected.delete(record.id);
       resetDraft(); resetContext(); status(''); controls();
     });
   });
-  status(records.length ? 'Shared records loaded.' : 'Connect this app in CareVault to get started.');
+  status('');
 }
 $('refresh').addEventListener('click', () => action(refresh));
 $('preview').addEventListener('click', () => action(async () => {
   const { context } = await api('/api/context', { recordIds: [...selected] });
   $('context').replaceChildren();
   context.forEach((source) => { const heading = document.createElement('h3'); const text = document.createElement('pre'); heading.textContent = source.recordId; text.textContent = source.text; $('context').append(heading, text); });
-  $('context-panel').hidden = false; $('context-panel').open = true; status('Showing the redacted text this app can currently read.');
+  $('context-panel').hidden = false; $('context-panel').open = true; status('');
 }));
 $('generate').addEventListener('click', () => action(async () => {
-  resetDraft(); status('Creating a discussion from your selected records…');
+  resetDraft(); status('Creating discussion…');
   const result = await api('/api/analyze', { recordIds: [...selected] });
   draftId = result.draftId; $('report').textContent = result.report; $('report').hidden = false; $('empty').hidden = true; $('report-actions').hidden = false;
-  status('Draft ready. Review it before saving.'); $('report').focus();
+  status('Draft ready.'); $('report').focus();
 }));
 $('save').addEventListener('click', () => action(async () => {
   status('Saving report to CareVault…');
   await api('/api/save', { draftId }); draftId = null;
-  status('Saved to CareVault Records. It remains unshared until you grant access.'); $('report-actions').hidden = true;
+  status('Saved to CareVault · Unshared.'); $('report-actions').hidden = true;
 }));
 function signOut() {
   authorization = null; selected = new Set(); resetDraft(); resetContext();

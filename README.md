@@ -2,7 +2,7 @@
 
 A local, patient-controlled record vault for healthcare integrations. Patients upload documents and images, inspect extracted text and redacted copies, and choose exactly which records each external app can use. Apps can return attributed, unverified reports without gaining broader access.
 
-**Verified local prototype — October 3, 2026.** The redesigned accounts/UI, private uploads, document worker, and both external apps are implemented. Real extraction/redacted exports, 30 classifier runs, free-model drafts, report writeback, and revocation have been exercised. Current checks: 52 Node tests, 22 worker tests including real runtime cases, 14 X-ray tests, 21 medicine tests, typecheck, and production build pass. Evidence and deployment limits are recorded in [verification](docs/VERIFICATION.md). These results establish demo mechanics, not clinical accuracy.
+**Verified local prototype — October 3, 2026.** The redesigned accounts/UI, private uploads, document worker, and both external apps are implemented. Real extraction/redacted exports, 30 classifier runs, free-model drafts, report writeback, and revocation have been exercised. Current checks: 52 Node tests, 22 worker tests including real runtime cases, 14 X-ray tests, 21 medicine tests, 30 Playwright browser cases, typecheck, and production build pass. Evidence and deployment limits are recorded in [verification](docs/VERIFICATION.md). These results establish demo mechanics, not clinical accuracy.
 
 Use fictional documents and attributed research images for this demo. This project is not a clinical decision system, universal de-identification tool, or HIPAA certification.
 
@@ -59,6 +59,8 @@ The fictional respiratory-care series includes an intake, visit note, illustrati
 | **Activity:** see upload, permission, read, and report events | **API setup:** copy integration examples without exposing patient data |
 
 CareVault has no patient-facing chatbot or developer request inspector. The developer role cannot read patient records or set patient consent. External apps do their own medical or conversational work.
+
+The UI keeps primary actions and permission choices visible. Info icons reveal app descriptions, provenance/redaction details, and integration data usage; developer API examples expand on demand. Secondary actions use icons with accessible names and tooltips. Dialogs return keyboard focus to their opening control.
 
 For each selected record, grant **extracted text**, **redacted file**, and/or **original file** independently. Integration text is the identifier-redacted version; the owner can inspect the original extraction. Original-file permission is explicit. New uploads and reports remain unshared until selected. Connecting an app alone does not share future records.
 
@@ -132,6 +134,18 @@ worker/.venv/bin/python -m unittest discover -s examples/medicine-app -p 'test_*
 ```
 
 Live acceptance steps are tracked in [BUILD.md](docs/BUILD.md). Passing injected tests does not establish real OCR, inference, provider access, or browser behavior. See [VERIFICATION.md](docs/VERIFICATION.md) for completed versus pending checks.
+
+### Repeatable browser checks
+
+```sh
+npx playwright install chromium
+npm run test:browser
+npm run test:browser:report
+```
+
+The browser command builds production assets and runs **30 Chromium checks** at desktop (1280×900) and mobile (390×844) sizes. Stop a running production CareVault server before rebuilding its `.next` assets, then restart it afterward. Port 3140 must be free; the test harness refuses to reuse an existing server. It creates and removes a temporary SQLite vault with synthetic credentials and fixtures, never the operator's `data/` directory.
+
+Patient/developer tests use the real HTTP backend for uploads, grants, credential lifecycle, report writes, revocation, and Trial Explorer. Prepared document renditions isolate browser behavior from OCR. External-app tests load the shipped HTML/CSS/JS with every network response intercepted; they cover UI interactions without calling classifiers or model providers. A simulated first-request failure verifies the patient Retry action. HTML results, screenshots, and failure traces stay in ignored `playwright-report/` and `test-results/`.
 
 Local operation is the current deliverable. A later persistent Linux server can host Next.js, a single worker, SQLite, and private durable files behind HTTPS. It needs tested proxy/cookie settings, restrictive ownership, supervised processes, disk monitoring, backup/restore, and appropriate deployment/security review. Do not place this SQLite vault on ephemeral Vercel storage. The full path is in [PLAN.md](docs/PLAN.md#later-persistent-server-deployment).
 

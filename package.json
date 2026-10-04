@@ -13,7 +13,9 @@
     "build": "next build --webpack",
     "start": "next start --hostname 127.0.0.1 --port 3040",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test tests/*.test.ts"
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test:browser": "npm run build && playwright test",
+    "test:browser:report": "playwright show-report"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",
@@ -32,6 +34,7 @@
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

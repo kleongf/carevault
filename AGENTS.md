@@ -15,6 +15,7 @@ Read README.md, docs/PLAN.md, and docs/VERIFICATION.md before implementation. Cu
 - Apps come from the directory. Patient grants select specific records and independent text/redacted/original representations. New uploads/reports remain unshared. Explicit original-file access is separate from extracted-text access.
 - Separate example apps are in scope: Chest X-ray Review on 3041, and a medicine OpenRouter wrapper on 3043. CareVault runs on 3040. External apps may draft unverified reports with valid source receipts; they do not establish clinical facts.
 - Keep the main UI concise. Put technical setup in the developer portal/docs, not repetitive patient-facing explanations.
+- Prefer short labels and logical icons for secondary actions, with accessible names/tooltips. Put descriptions and reference details behind native disclosures; keep permission choices and unverified status clear. Preserve keyboard focus when dialogs close.
 - Free/local operation first. Do not incur paid model usage or silently substitute models. Source publication to https://github.com/kleongf/carevault.git is authorized; public deployment is not configured.
 
 ## Execution and ownership
@@ -63,6 +64,7 @@ Required checks for relevant changes:
 npm test
 npm run typecheck
 npm run build
+npm run test:browser
 git diff --check
 worker/.venv/bin/python -m unittest discover -s worker -p 'test_*.py' -v
 worker/.venv/bin/python -m unittest discover -s examples/xray-app -p 'test_*.py' -v
@@ -72,6 +74,8 @@ worker/.venv/bin/python -m unittest discover -s examples/medicine-app -p 'test_*
 For processing changes, run the real worker benchmark and optional model tests described in worker/README.md. For integration changes, test real permission reads, provider boundaries, writeback, and revocation in addition to injected unit tests. For UI changes, inspect desktop/mobile layouts and keyboard/focus behavior. Documentation-only changes require source/evidence cross-checks, not unnecessary provider calls.
 
 The documented baseline is 52 Node tests, 22 worker tests with real runtime cases enabled, 14 X-ray tests, 21 medicine tests, typecheck, and build. Live provider/writeback/revocation checks and 30 real classifier executions are recorded in docs/VERIFICATION.md. Count/tests may grow; verify fresh results after changes. There is no lint script or configured CI workflow to claim as passing. A green narrow test does not prove the complete active goal.
+
+Playwright adds 30 Chromium browser cases across desktop and mobile. Install its browser with `npx playwright install chromium`. `npm run test:browser` includes a production build; stop any production server using that build directory first, then restart afterward. The harness owns port 3140, creates a temporary synthetic vault, refuses to reuse an existing listener, and removes the vault on shutdown. Never point browser tests at the operator's vault. Integration browser APIs and document processing outputs are injected; this suite does not replace the separately recorded real worker/provider checks. Keep screenshots/traces/reports ignored.
 
 ## Secrets, migration, and publishing
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, LoaderCircle, LogOut, ShieldCheck } from 'lucide-react';
 import { Login } from '../../components/carevault/login';
 import { PermissionDialog } from '../../components/carevault/permissions';
@@ -18,7 +18,7 @@ export default function TrialsPage() {
   const [signingOut, setSigningOut] = useState(false);
   const [permissionsOpen, setPermissionsOpen] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const permissionButtonRef = useRef<HTMLButtonElement>(null);
 
   async function refresh(): Promise<Dashboard | null> {
     try {
@@ -43,7 +43,7 @@ export default function TrialsPage() {
   }, []);
 
   async function signedIn(next: Account) {
-    setAccount(next); setError(''); setNotice(''); setDashboard(null);
+    setAccount(next); setError(''); setDashboard(null);
     if (next.role !== 'patient') return;
     setLoading(true);
     try { await refresh(); } catch (err) { setError(errorMessage(err)); } finally { setLoading(false); }
@@ -52,7 +52,7 @@ export default function TrialsPage() {
     setSigningOut(true); setError('');
     try {
       await request('/api/session', 'DELETE');
-      setAccount(null); setDashboard(null); setPermissionsOpen(false); setNotice('');
+      setAccount(null); setDashboard(null); setPermissionsOpen(false);
     } catch (err) { setError(errorMessage(err)); } finally { setSigningOut(false); }
   }
 
@@ -63,10 +63,9 @@ export default function TrialsPage() {
   return <div className="min-h-screen"><header className="topbar"><a href="/" className="flex items-center gap-2"><ArrowLeft size={16} />CareVault</a><Button variant="ghost" size="sm" disabled={signingOut} onClick={signOut}><LogOut size={15} />Sign out</Button></header>
     <main className="main-content mx-auto max-w-6xl">
       {error && <p className="alert error" role="alert">{error}</p>}
-      {notice && <p className="alert success" role="status">{notice}</p>}
       {account.role !== 'patient' ? <div className="empty-state"><ShieldCheck size={28} /><h1>Patient account required</h1><p>Sign out and use your patient account to open Trial Explorer.</p><Button asChild variant="outline" className="mt-4"><a href="/">Back to developer workspace</a></Button></div> : dashboard && integration ? <>
-        <TrialExplorer key={integration.grant.version} integration={integration} requests={dashboard.trialRequests} memories={dashboard.memories} onPermissions={() => setPermissionsOpen(true)} onRefresh={refresh} />
-        {permissionsOpen && <PermissionDialog integration={integration} memories={dashboard.memories} onClose={() => setPermissionsOpen(false)} onSaved={async message => { await refresh(); setPermissionsOpen(false); setNotice(message); }} />}
+        <TrialExplorer key={integration.grant.version} integration={integration} requests={dashboard.trialRequests} memories={dashboard.memories} onPermissions={() => setPermissionsOpen(true)} onRefresh={refresh} permissionButtonRef={permissionButtonRef} />
+        {permissionsOpen && <PermissionDialog onCloseAutoFocus={event => { event.preventDefault(); permissionButtonRef.current?.focus(); }} integration={integration} memories={dashboard.memories} onClose={() => setPermissionsOpen(false)} onSaved={async () => { await refresh(); setPermissionsOpen(false); }} />}
       </> : <div className="empty-state"><p>Trial Explorer is unavailable.</p><Button variant="outline" className="mt-4" onClick={async () => { setError(''); try { await refresh(); } catch (err) { setError(errorMessage(err)); } }}>Retry</Button></div>}
     </main>
   </div>;
