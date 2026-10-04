@@ -197,6 +197,29 @@ class MedicineTests(unittest.TestCase):
         finally:
             self.app.lock.release()
 
+    def test_descriptors_keep_kind_and_mime_without_titles(self):
+        original = self.app.vault
+        def listing(path, *args, **kwargs):
+            if path == '/api/v2/records':
+                return encode({'records': [
+                    {'id': FIRST, 'kind': 'document', 'mime': 'text/plain', 'status': 'ready', 'title': 'Patient title', 'filename': 'secret.pdf', 'provenance': 'private note', 'allowed': {'text': True, 'redacted': False, 'original': False}},
+                    {'id': SECOND, 'kind': 'document', 'mime': 'application/pdf', 'status': 'ready', 'title': 'Labs', 'allowed': {'text': True, 'redacted': True, 'original': False}},
+                    {'id': SAVED, 'kind': 'secret title', 'mime': '../secret.pdf', 'status': 'ready', 'title': 'Hidden', 'allowed': {'text': True}},
+                ]})
+            return original(path, *args, **kwargs)
+        self.app.vault = listing
+        records = self.app.records()
+        self.assertEqual([item['id'] for item in records], [FIRST, SECOND, SAVED])
+        self.assertEqual(records[0]['kind'], 'document')
+        self.assertEqual(records[0]['mime'], 'text/plain')
+        self.assertEqual(records[1]['mime'], 'application/pdf')
+        self.assertEqual(records[1]['allowed'], {'text': True, 'redacted': True, 'original': False})
+        self.assertEqual(records[2]['kind'], 'document')
+        self.assertNotIn('mime', records[2])
+        blob = json.dumps(records)
+        for withheld in ('title', 'filename', 'provenance', 'Patient title', 'secret.pdf', 'Labs', 'Hidden', 'secret title'):
+            self.assertNotIn(withheld, blob)
+
     def test_environment_rejects_remote_url_and_missing_token(self):
         with patch.dict('os.environ', {'CAREVAULT_URL': 'https://evil.example', 'CAREVAULT_TOKEN': 'x'*25}, clear=True):
             self.assert_error('invalid_carevault_origin', Config.from_environment)
@@ -266,6 +289,19 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(json.loads(body)['recordId'], SAVED)
         self.assertNotIn('client injection ignored', self.network.writes[-1]['body'])
+
+    def test_shell_describes_groups_without_html_report_rendering(self):
+        status, _, body = self.request('/', headers={'Authorization': ''})
+        self.assertEqual(status, 200)
+        self.assertIn(b'Medicine Review turns selected patient information into a medication discussion brief for a clinician.', body)
+        self.assertIn(b'Unverified medicine discussion', body)
+        status, _, script = self.request('/app.js', headers={'Authorization': ''})
+        self.assertEqual(status, 200)
+        self.assertIn(b'Patient Info', script)
+        self.assertIn(b'Documents', script)
+        self.assertNotIn(b'Record ${', script)
+        self.assertNotIn(b'innerHTML', script)
+        self.assertNotIn(b'insertAdjacentHTML', script)
 
     def test_invalid_payloads_and_bounds(self):
         self.assertEqual(self.request('/api/analyze', 'POST', {})[0], 400)

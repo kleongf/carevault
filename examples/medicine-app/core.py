@@ -82,6 +82,23 @@ def digest(context):
     return hashlib.sha256(json.dumps(context, sort_keys=True).encode()).hexdigest()
 
 
+KINDS = {"document", "image", "report"}
+MIMES = {"application/pdf", "image/png", "image/jpeg", "text/plain"}
+
+
+def public_record(item):
+    """Descriptor fields the UI may show. Titles, filenames, and provenance stay out."""
+    kind = item.get("kind") if item.get("kind") in KINDS else "document"
+    entry = {"id": item["id"], "kind": kind, "status": "ready", "allowed": {
+        "text": item["allowed"].get("text") is True,
+        "redacted": item["allowed"].get("redacted") is True,
+        "original": item["allowed"].get("original") is True,
+    }}
+    if item.get("mime") in MIMES:
+        entry["mime"] = item["mime"]
+    return entry
+
+
 class MedicineApp:
     def __init__(self, config, request=transport):
         self.config, self.request = config, request
@@ -103,7 +120,7 @@ class MedicineApp:
             if not isinstance(item, dict) or not ID.fullmatch(str(item.get("id", ""))) or not isinstance(item.get("allowed"), dict):
                 raise AppError("invalid_upstream_response", 502)
             if item.get("status") == "ready" and item["allowed"].get("text") is True:
-                result.append({"id": item["id"], "kind": item.get("kind", "document")})
+                result.append(public_record(item))
         return result
 
     def context(self, record_ids):

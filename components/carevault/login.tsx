@@ -2,7 +2,6 @@
 
 import { useState, type FormEvent } from 'react';
 import { ArrowRight, ShieldCheck } from 'lucide-react';
-import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { Input } from '../ui/input';
@@ -35,6 +34,5 @@ export function Login({ onSignedIn }: { onSignedIn: (account: Account) => void }
       {error && <p className="alert error" role="alert">{error}</p>}
       <Button type="submit" disabled={busy} className="full-width">{busy ? 'Signing in…' : 'Sign in'}<ArrowRight size={16} /></Button>
     </form>
-    <Badge variant="outline">Demo</Badge>
   </CardContent></Card></main>;
 }

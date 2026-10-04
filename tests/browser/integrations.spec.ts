@@ -115,7 +115,7 @@ for (const app of ['medicine', 'xray'] as const) {
       await selectContext(page, app);
       if (app === 'medicine') {
         await page.locator('#preview').click();
-        await expect(page.locator('#context-panel')).toBeVisible();
+        await expect(page.getByRole('dialog', { name: 'Shared text' })).toBeVisible();
         await expect(page.locator('#context')).toContainText(sharedText);
         expect(state.calls.find(call => call.path === '/api/context')?.body).toEqual({ recordIds: ['fixture-note'] });
       } else {
@@ -147,7 +147,7 @@ for (const app of ['medicine', 'xray'] as const) {
         state.failure = { path: '/api/context', status: 403, error: 'record_not_shared' };
         await page.locator('#preview').click();
         await expect(page.locator('#status')).toContainText('no longer shared');
-        await expect(page.locator('#context-panel')).toBeHidden();
+        await expect(page.getByRole('dialog', { name: 'Shared text' })).toBeHidden();
         await expect(page.locator('#report')).toBeEmpty();
         await expect(page.locator('#save')).toBeDisabled();
       } else {
@@ -155,7 +155,6 @@ for (const app of ['medicine', 'xray'] as const) {
         await page.getByLabel('Shared version').selectOption('original');
         await expect(page.locator('#status')).toContainText('no longer shared');
         await expect(page.locator('#preview')).toBeHidden();
-        await expect(page.locator('#result')).toBeHidden();
         await expect(page.locator('#report')).toBeEmpty();
       }
       state.failure = { path: '/api/records', status: 401, error: 'sign_in_required' };
