@@ -2,7 +2,7 @@
 
 A local, patient-controlled record vault for healthcare integrations. Patients upload documents and images, inspect extracted text and redacted copies, and choose exactly which records each external app can use. Apps can return attributed, unverified reports without gaining broader access.
 
-**Verified local prototype — October 3, 2026.** The redesigned accounts/UI, private uploads, document worker, and both external apps are implemented. Real extraction/redacted exports, 30 classifier runs, free-model drafts, report writeback, and revocation have been exercised. Current checks: 52 Node tests, 22 worker tests including real runtime cases, 14 X-ray tests, 21 medicine tests, 30 Playwright browser cases, typecheck, and production build pass. Evidence and deployment limits are recorded in [verification](docs/VERIFICATION.md). These results establish demo mechanics, not clinical accuracy.
+**Verified local prototype — October 3, 2026.** The redesigned accounts/UI, private uploads, document worker, and both external apps are implemented. Real extraction/redacted exports, 30 classifier runs, free-model drafts, report writeback, and revocation have been exercised. Current checks: 60 Node tests, 26 worker tests including real runtime cases, 14 X-ray tests, 21 medicine tests, 36 Playwright browser cases, typecheck, and production build pass. Evidence and deployment limits are recorded in [verification](docs/VERIFICATION.md). These results establish demo mechanics, not clinical accuracy.
 
 Use fictional documents and attributed research images for this demo. This project is not a clinical decision system, universal de-identification tool, or HIPAA certification.
 
@@ -54,6 +54,7 @@ The fictional respiratory-care series includes an intake, visit note, illustrati
 
 | Patient account | Developer account |
 | --- | --- |
+| **Profile:** edit basics, allergies, medications, conditions, and care preferences | Patient profile data is unavailable to developers |
 | **Records:** upload PDF/PNG/JPEG; open Original, Extracted text, or Redacted copy | **My apps:** register/edit an app, URL, description, and requested capabilities |
 | **Apps:** find an app in the directory, select records, save permissions, revoke | **Credentials:** issue/rotate/revoke a server credential; new tokens are shown once |
 | **Activity:** see upload, permission, read, and report events | **API setup:** copy integration examples without exposing patient data |
@@ -64,9 +65,19 @@ The UI keeps primary actions and permission choices visible. Info icons reveal a
 
 For each selected record, grant **extracted text**, **redacted file**, and/or **original file** independently. Integration text is the identifier-redacted version; the owner can inspect the original extraction. Original-file permission is explicit. New uploads and reports remain unshared until selected. Connecting an app alone does not share future records.
 
-Profiles `identifiers` and `healthcare` run automatic identifier redaction; healthcare additionally detects dates. They do not remove selected clinical topics, guarantee all identifiers are found, or implement HIPAA Safe Harbor certification. Observed OCR/redaction errors include a misread temperature-unit character and over-redaction of labels such as Allergies and Oxygen; inspect the output rather than treating it as exact clinical transcription. There is no manual redaction editor. Readable originals remain in private storage.
+Redaction presets `identifiers` and `healthcare` run automatic identifier redaction; healthcare additionally detects dates. They do not remove selected clinical topics, guarantee all identifiers are found, or implement HIPAA Safe Harbor certification. Observed OCR/redaction errors include a misread temperature-unit character and over-redaction of labels such as Allergies and Oxygen; inspect the output rather than treating it as exact clinical transcription. There is no manual redaction editor. Readable originals remain in private storage.
 
 Reports arrive as unverified integration-generated records, with server-assigned authorship and source receipts. Their source dependencies remain restrictive when shared later. There is no fact acceptance or clinical-verification workflow.
+
+### Patient profile
+
+Open **Profile** to edit name, date of birth, contact details, allergies, medications, conditions, accessibility needs, emergency contact, and care preferences. Save explicitly; Cancel discards edits. Unsaved edits survive workspace navigation and polling. Concurrent saves return a conflict instead of silently overwriting another session.
+
+Fields are patient-reported and unverified. Blank medical fields mean unknown. The initial profile uses the demo name but does not infer medical history from seeded documents or legacy facts. Saving does not rewrite uploaded records or Trial Explorer's legacy structured facts.
+
+Each changed save creates a private, immutable text snapshot processed by the existing worker. **Preview snapshot** opens its original, extraction, and redacted PDF. In **Apps**, explicitly select **Patient profile** and its allowed representations. Every new version starts unshared. Editing revokes old snapshot access and invalidates old source receipts, including downstream report access; copies already obtained by an app cannot be recalled. Old snapshots remain in private storage and count toward the 100-record quota. There is no history editor or pruning UI.
+
+Because reports inherit all historical app disclosures, a report from an app that previously read a superseded profile may remain owner-only even after the latest version is shared. This is conservative provenance enforcement, not automatic replacement of old report context.
 
 ## Separate example applications
 
@@ -79,6 +90,8 @@ Reports arrive as unverified integration-generated records, with server-assigned
 The [X-ray example](examples/xray-app/README.md) has its own local login, server-side CareVault token, explicitly provisioned weights, and explicit OpenRouter model. It reads an authorized image, produces classifier scores, drafts an unverified report, rechecks access, and supports an explicit save back to the vault. Scores are not calibrated disease probabilities or cancer diagnoses. The [30-run local evaluation](examples/xray-app/EVALUATION.md) verifies execution and output consistency. NIH demonstration images are not an independent clinical evaluation set.
 
 The [Medicine Review example](examples/medicine-app/README.md) is a separate application under `examples/medicine-app/`, not a restored chat screen inside CareVault. It uses `text:read` and `reports:create`. Export `CAREVAULT_TOKEN`, `OPENROUTER_API_KEY`, an explicit `OPENROUTER_MODEL`, `MEDICINE_APP_USERNAME`, and `MEDICINE_APP_PASSWORD` (at least 12 characters), then run `worker/.venv/bin/python examples/medicine-app/app.py`. `CAREVAULT_URL` defaults to the local vault. Follow its own README for current status; do not assume another app's credentials or data access apply to it.
+
+On the working demo machine, both example apps use username `demo` and the current CareVault patient password; the developer password is unchanged. This is local demo configuration, not automatic account synchronization on new checkouts. Retrieve current logins from the private `data/demo-logins.txt`.
 
 Both example apps use an in-page login. Local app credentials are kept only in JavaScript memory and sent explicitly in Basic authorization headers; they are not browser-stored. No native Basic-auth prompt is used. Integration tokens and provider keys stay server-side. These loopback HTTP examples are not public hosting servers.
 
@@ -101,6 +114,7 @@ External report -> validated receipts + inherited dependencies -> private queued
 | `components/ui/` | shadcn/Radix components and included license |
 | `lib/accounts.ts`, `lib/developer.ts` | Role authentication, persisted sessions, app ownership and credentials |
 | `lib/http.ts`, `app/api/[...path]/route.ts` | HTTP boundary, Origin checks, body/upload limits, safe responses |
+| `lib/profile.ts`, `components/carevault/profile.tsx` | Profile validation, patient-reported snapshots, and compact editor |
 | `lib/records.ts` | Upload persistence, per-record grants, representation reads, receipts, reports |
 | `lib/store.ts` | SQLite JSON records and additive migrations |
 | `worker/` | Durable job processing, Docling/OCR, identifier detection, exported renditions and benchmarks |
@@ -133,6 +147,12 @@ worker/.venv/bin/python -m unittest discover -s examples/xray-app -p 'test_*.py'
 worker/.venv/bin/python -m unittest discover -s examples/medicine-app -p 'test_*.py' -v
 ```
 
+The real profile-processing check uses a temporary vault and the installed worker, without provider calls:
+
+```sh
+node --experimental-strip-types scripts/verify-profile-processing.ts
+```
+
 Live acceptance steps are tracked in [BUILD.md](docs/BUILD.md). Passing injected tests does not establish real OCR, inference, provider access, or browser behavior. See [VERIFICATION.md](docs/VERIFICATION.md) for completed versus pending checks.
 
 ### Repeatable browser checks
@@ -143,7 +163,7 @@ npm run test:browser
 npm run test:browser:report
 ```
 
-The browser command builds production assets and runs **30 Chromium checks** at desktop (1280×900) and mobile (390×844) sizes. Stop a running production CareVault server before rebuilding its `.next` assets, then restart it afterward. Port 3140 must be free; the test harness refuses to reuse an existing server. It creates and removes a temporary SQLite vault with synthetic credentials and fixtures, never the operator's `data/` directory.
+The browser command builds production assets and runs **36 Chromium checks** at desktop (1280×900) and mobile (390×844) sizes. Stop a running production CareVault server before rebuilding its `.next` assets, then restart it afterward. Port 3140 must be free; the test harness refuses to reuse an existing server. It creates and removes a temporary SQLite vault with synthetic credentials and fixtures, never the operator's `data/` directory.
 
 Patient/developer tests use the real HTTP backend for uploads, grants, credential lifecycle, report writes, revocation, and Trial Explorer. Prepared document renditions isolate browser behavior from OCR. External-app tests load the shipped HTML/CSS/JS with every network response intercepted; they cover UI interactions without calling classifiers or model providers. A simulated first-request failure verifies the patient Retry action. HTML results, screenshots, and failure traces stay in ignored `playwright-report/` and `test-results/`.
 

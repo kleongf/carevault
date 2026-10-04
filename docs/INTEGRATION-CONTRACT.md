@@ -110,6 +110,8 @@ Browser routes use an HttpOnly SameSite=Strict session cookie. All mutations, in
 | `POST /api/developer/apps/:id/credential` | Owning developer | `{token,app}`; rotate/issue |
 | `DELETE /api/developer/apps/:id/credential` | Owning developer | Revoked app descriptor |
 | `GET /api/patient/dashboard` | Patient | Own records, app directory/grants, latest activity |
+| `GET /api/patient/profile` | Patient | `{version,updatedAt,snapshotId,fields}` |
+| `PUT /api/patient/profile` | Patient | `{version,fields}` -> saved profile; stale version returns 409 |
 | `POST /api/patient/records` | Patient | Raw file bytes; headers described below |
 | `GET /api/patient/records/:id/text` | Patient | Original extracted text, after ready |
 | `GET /api/patient/records/:id/files/original` | Patient | Original file |
@@ -135,6 +137,14 @@ Example patient grant:
 
 All three representation booleans are required for each listed record. Unlisted/new records are not shared. The server assigns the grant version; the app cannot modify it. Report-source inheritance can further narrow the effective permissions beyond these direct selections.
 
+## Patient profile snapshots
+
+Only patient sessions can edit the profile. Supply all eleven string fields: `name`, `dateOfBirth`, `email`, `phone`, `address`, `allergies`, `medications`, `conditions`, `accessibilityNeeds`, `emergencyContact`, and `carePreferences`. Blank values mean unknown. Limits are 120 characters for name, 10 for DOB, 254 for email, 60 for phone, 300 for address/emergency contact, and 2,000 for each remaining field. DOB is blank or a valid `YYYY-MM-DD` from 1900 through today. The server trims values and checks the integer version again within the save transaction. Identical normalized saves do not enqueue another snapshot.
+
+A changed save produces an immutable, unshared record processed by the existing worker. Apps use the existing v2 record listing/text/file APIs after explicit patient sharing; no bearer-accessible profile endpoint exists. Text access releases identifier-redacted text, and original/redacted files require their own grants. Every snapshot declares patient-reported, unverified provenance. Empty information must never be interpreted as absence of disease.
+
+Editing supersedes the previous snapshot, removes its grants, and denies future app reads even if a stale grant is replayed. A new share must select the new record ID. Old receipts become unusable for new report submissions; dependent reports cannot be shared when inherited source access is invalid. Historical disclosure inheritance can also make later reports owner-only despite sharing the latest profile. This cannot recall data already copied outside CareVault. Ordinary records and legacy structured facts are not rewritten. Old snapshots stay private and count toward storage/count quotas.
+
 ## Errors and response handling
 
 Errors use `{ "error": "code", "message": "safe description" }` with no raw source/provider content. Responses use private/no-store caching and content-type protections.
@@ -143,7 +153,7 @@ Errors use `{ "error": "code", "message": "safe description" }` with no raw sour
 - **401:** missing/invalid credentials, expired browser session, or invalid login.
 - **403:** wrong role, Origin, disconnected grant, unsupported/unauthorized representation, invalid source receipt, or v2-only token used on v1.
 - **404:** unavailable/unknown objects and routes, including ownership-protected lookups.
-- **409:** record not ready, rendition unavailable, or app-limit conflict.
+- **409:** record not ready, rendition unavailable, app-limit conflict, stale profile version (`profile_conflict`), or superseded profile selection (`profile_superseded`).
 - **413:** upload/request/storage quota exceeded.
 - **429:** login throttling.
 - **500:** sanitized internal failure.

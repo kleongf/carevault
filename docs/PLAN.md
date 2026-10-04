@@ -6,7 +6,7 @@ Updated October 3, 2026. This is the approved redesign, not a claim that every a
 
 CareVault is a private record store and permission gateway. The patient uploads documents, sees originals/extracted text/redacted exports, selects what apps may read, and receives attributed reports. Medical analysis and chat belong to separate integration apps.
 
-The patient workspace has **Records, Apps, Activity**. The separate developer workspace has **My apps, API setup**, with registration, app editing, and credential management. Two seeded username/password accounts have distinct server-enforced roles. Public signup, password-reset UI, and a recovery command are excluded from this implementation.
+The patient workspace has **Profile, Records, Apps, Activity**. The separate developer workspace has **My apps, API setup**, with registration, app editing, and credential management. Two seeded username/password accounts have distinct server-enforced roles. Public signup, password-reset UI, and a recovery command are excluded from this implementation.
 
 Uploads support text PDFs, scanned PDFs, PNGs, and JPEGs. There is no DICOM ingestion, fact proposal, extraction LLM, review workflow, manual redaction editor, or new clinical-topic redaction feature. The extracted text is an unverified transcription, not a normalized clinical knowledge graph.
 
@@ -67,10 +67,10 @@ New developer apps are marked v2-only. Disconnecting an app must disable both AP
 
 | Area | Current evidence | Handoff note |
 | --- | --- | --- |
-| Roles, sessions, developer lifecycle | 52 Node tests; both role logins and developer registration/edit fields/API setup in browser | Credential modal inspected; lifecycle API-tested |
+| Roles, sessions, developer lifecycle | 60 Node tests; both role logins and developer registration/edit fields/API setup in browser | Credential modal inspected; lifecycle API-tested |
 | Uploads, grants, receipts, reports | Eight seeded records processed; real browser PDF upload; both apps' report/save/revoke flow; queued-job restart passed | Image preview verified |
 | Patient/developer UI split | PDF.js original/redacted canvas and text verified; developer 390px view has no horizontal overflow | Patient 390px view and final interaction checks passed |
-| Docling/OCR/redaction | 22 tests including real runtime; six benchmark fixtures; restart/corrupt-input check passed; known over-redaction documented | No general accuracy claim |
+| Docling/OCR/redaction | 26 tests including real runtime; six benchmark fixtures; restart/corrupt-input check passed; known over-redaction documented | No general accuracy claim |
 | Demo documents and NIH images | Provenance/hash evidence; second seeding run imported zero | Patient NIH image/provenance preview verified |
 | X-ray integration | 14 tests, 30 real inferences, live free-model/browser writeback and revocation | Local demo verified; no clinical validation |
 | Medicine integration | 21 tests, live free-model/browser writeback and revocation | Local demo verified; no clinical validation |
@@ -95,4 +95,10 @@ Do not run this vault on ephemeral Vercel filesystem storage. Horizontal scaling
 
 ## Concurrent Trial Explorer contribution
 
-Remote commits `397f9bc` and `e2e0072` introduced Trial Explorer during redesign verification. Preserve its synthetic matching, one-use fact approvals, APIs, tests, and styles. Its UI lives separately at `/trials` with patient-role authentication and the existing legacy permission editor; Records/Apps/Activity remain the main patient navigation. Trial Explorer continues to use legacy structured facts, not uploaded document text.
+Remote commits `397f9bc` and `e2e0072` introduced Trial Explorer during redesign verification. Preserve its synthetic matching, one-use fact approvals, APIs, tests, and styles. Its UI lives separately at `/trials` with patient-role authentication and the existing legacy permission editor; Profile/Records/Apps/Activity remain the main patient navigation. Trial Explorer continues to use legacy structured facts, not uploaded document text.
+
+## Patient profile addition — implemented October 3, 2026
+
+A compact patient editor covers basic identity/contact, allergies, medications, conditions, accessibility needs, emergency contact, and care preferences. It labels values patient-reported, leaves missing medical data unknown, and preserves unsaved drafts across navigation. Version checks prevent silent concurrent overwrite.
+
+Changed saves atomically persist a new private text snapshot, enqueue extraction/redaction, supersede the old snapshot, and remove its grants. The owner previews all representations and explicitly shares the latest version in Apps. Old reads, receipts, and dependent report access fail closed; no outside copies can be recalled. Existing uploaded records and legacy Trial Explorer facts are unchanged. Retained snapshots count toward vault quotas. See the API contract and verification evidence for this additive implementation.

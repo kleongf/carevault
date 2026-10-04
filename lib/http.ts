@@ -93,6 +93,12 @@ export async function handleRequest(request: Request, injectedStore?: Store): Pr
       if (method !== 'GET') sameOrigin(request);
       const records = new RecordVault(store);
       if (pathname === '/api/patient/dashboard' && method === 'GET') return json(records.dashboard());
+      if (pathname === '/api/patient/profile' && method === 'GET') return json(records.patientProfile());
+      if (pathname === '/api/patient/profile' && method === 'PUT') {
+        const input = await body(request);
+        requireAccount(request, store, 'patient');
+        return json(records.saveProfile(input));
+      }
       if (pathname === '/api/patient/records' && method === 'POST') {
         let title: string;
         try { title = decodeURIComponent(request.headers.get('x-file-name') ?? ''); } catch { throw new ApiError(400, 'invalid_title'); }

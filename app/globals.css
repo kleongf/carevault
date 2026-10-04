@@ -165,3 +165,19 @@
 .compact-details > p { margin-top: 6px; line-height: 1.6; }
 .api-details > summary { cursor: pointer; }
 .api-details > summary h2 { display: inline; margin-left: 8px; }
+
+.profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.profile-card { display: grid; gap: 14px; padding: 22px; }
+.profile-card h2 { font-size: 15px; font-weight: 600; }
+.profile-card label { display: block; margin-bottom: 6px; font-size: 12px; }
+.profile-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.profile-wide { grid-column: 1 / -1; }
+.profile-card textarea { min-height: 70px; resize: vertical; }
+.profile-footer { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-top: 18px; }
+.profile-footer .compact-details { max-width: 440px; margin: 0; }
+@media (max-width: 800px) { .profile-grid { grid-template-columns: 1fr; } }
+@media (max-width: 480px) { .profile-fields { grid-template-columns: 1fr; } .profile-card { padding: 16px; } .profile-footer { gap: 8px; } }
+.patient > div { min-width: 0; }
+.patient strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.patient-profile .page-heading { flex-wrap: wrap; }
+.profile-grid > *, .profile-fields > * { min-width: 0; }

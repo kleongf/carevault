@@ -6,7 +6,7 @@ Evidence snapshot: **October 3, 2026**, local macOS ARM64. Core redesign and bot
 
 | Check | Recorded result | Scope |
 | --- | --- | --- |
-| `npm test` | 52 passed | Real temporary SQLite stores and HTTP/service behavior; provider responses injected in legacy chat tests |
+| `npm test` | 60 passed | Real temporary SQLite stores and HTTP/service behavior; provider responses injected in legacy chat tests |
 | `npm run typecheck` | Passed | Current TypeScript sources |
 | `npm run build` | Passed | Next.js production build, including PDF.js 6 canvas previews |
 | Fictional fixture generation | Five files, 233,743 bytes | Reproducible PDFs/photo, visible fictional labeling, source consistency |
@@ -115,3 +115,15 @@ The teammate Trial Explorer contribution from `origin/main` (`397f9bc`, `e2e0072
 ## Handoff verdict
 
 Ready for the local synthetic-data hackathon demo, with the documented OCR/redaction/model limitations. All 109 automated tests passed (52 Node, 22 worker, 14 X-ray, 21 medicine), together with typecheck and production build. Configured credentials, private vault data, generated files, and weights were excluded from source publication. Both example servers are configured against the preserved local vault; their current read scopes include three fictional text documents and one attributed research X-ray respectively. Public hosting and clinical validation remain outside this delivery.
+
+## Patient profile and demo login follow-up — October 3, 2026
+
+- `npm test`: **60/60 passed**, including eight new profile cases covering validation, immutable snapshots, unknown defaults, restart, role/Origin/session boundaries, concurrent saves, all representation grants, old receipts and report ancestry, quota limits, and transaction/filesystem rollback.
+- `npm run test:browser`: production build passed, then **36/36 Chromium cases passed in 40.8 seconds**. Six new desktop/mobile cases cover all editable fields, saved identity, reload persistence, explicit sharing, retained drafts, cancel, queued previews, validation, and conflicting sessions. Desktop/mobile profile screenshots were inspected. Browser processing fixtures remain injected.
+- `CAREVAULT_RUN_MODEL_TESTS=1 worker/.venv/bin/python -m unittest discover -s worker -p 'test_*.py' -v`: **26/26 passed**, including three real runtime cases and four added snapshot-hint/supersession cases.
+- `node --experimental-strip-types scripts/verify-profile-processing.ts`: passed with the actual worker and a temporary synthetic vault. Verified extraction, selected identifier redaction, preserved allergy text, redacted PDF output, explicit text sharing, old-context denial, and rejection of a stale report receipt after an edit. No provider call was made.
+- `worker/.venv/bin/python worker/benchmark.py`: all six real document fixtures passed the extraction, text/export redaction, and pixel checks again. The ignored benchmark artifact retains fresh timings.
+- Restarted CareVault returned HTTP 200; authenticated GET of the live profile returned all eleven fields without changing the preserved patient data.
+- Existing X-ray and medicine source code was unchanged. Their locally configured passwords were normalized to the current patient password, both servers restarted, and accepted/rejected HTTP authentication checked without printing credentials. Developer credentials remain unchanged. No automatic cross-app account synchronization was added.
+
+Earlier test totals and timing sections above are historical evidence. Current fresh profile checks are the results in this section. Known limits: identifier detection remains best effort, retained snapshots count toward record quotas, legacy facts and historical documents do not synchronize with profile edits, and reports may remain owner-only when any historical source was superseded. Deploy the updated gateway and worker together; rollback requires a consistent pre-change vault backup or a forward fix, since the old gateway lacks supersession enforcement.

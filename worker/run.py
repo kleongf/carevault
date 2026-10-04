@@ -229,6 +229,13 @@ class Worker:
             staging = directory / (".processing-" + token)
             staging.mkdir(mode=0o700)
             known = self.queue.identifiers(doc["patientId"])
+            # Use the claimed snapshot's hints, never the patient's newer profile.
+            # Match the detector's bounded known-value path; ordinary uploads and
+            # report content cannot opt themselves into profile metadata.
+            version, hints = doc.get("profileSnapshotVersion"), doc.get("profileIdentifiers")
+            if type(version) is int and version > 0 and isinstance(hints, list):
+                known.extend(value.strip() for value in hints[:6]
+                             if isinstance(value, str) and 3 <= len(value.strip()) <= 300)
             if processor is not None:
                 # Test-only dependency injection, not a production fallback.
                 metrics = processor(doc, directory, staging, known)

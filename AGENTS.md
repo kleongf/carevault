@@ -9,7 +9,8 @@ On October 3, 2026 the user authorized deleting regeneratable caches, disposable
 Read README.md, docs/PLAN.md, and docs/VERIFICATION.md before implementation. Current source and measured results take precedence over historical chat-era assumptions.
 
 - Implement a local synthetic/research-data hackathon prototype with two seeded username/password roles: patient and developer. Preserve the existing vault.
-- Patient navigation is Records, Apps, Activity. Developer navigation is My apps and API setup, with app editing and credential issuance/revocation. No patient chatbot, owner request inspector, developer patient-data browser, or connections dashboard.
+- Patient navigation is Profile, Records, Apps, Activity. Developer navigation is My apps and API setup, with app editing and credential issuance/revocation. No patient chatbot, owner request inspector, developer patient-data browser, or connections dashboard.
+- Profile edits are patient-reported, version-checked, and atomic with immutable queued snapshots and old-grant revocation. Unknown fields stay unknown; do not infer or rewrite historical documents/legacy facts. New snapshots require explicit sharing. Preserve supersession even when the worker finishes an older job.
 - Support private PDFs, scanned PDFs, PNG/JPEG documents and X-rays. Expose Original, Extracted text, and Redacted copy. No fact proposals, extraction LLM, review checklist, manual redaction editor, or new clinical-topic redaction feature.
 - Use a persistent Python worker with Docling, local OCR, and identifier detection. Redacted PDFs are freshly rasterized exports without original hidden text or metadata. Benchmark actual cold/warm work rather than promising latency.
 - Apps come from the directory. Patient grants select specific records and independent text/redacted/original representations. New uploads/reports remain unshared. Explicit original-file access is separate from extracted-text access.
@@ -27,6 +28,7 @@ Use docs/BUILD.md acceptance checks. Distinguish implemented code, injected test
 ## Repository navigation
 
 - `app/page.tsx` dispatches the authenticated role; `components/carevault/` implements patient/developer workspaces. Preserve shadcn/Radix accessibility behavior and component licensing.
+- `lib/profile.ts` validates profile fields; `lib/records.ts` persists profile/snapshot/grant changes in one transaction. `scripts/verify-profile-processing.ts` checks the real worker and old-context invalidation in a temporary vault.
 - `lib/accounts.ts` owns password hashes, persisted hashed sessions, throttling, role enforcement, and cookies.
 - `lib/developer.ts` owns developer app ownership, capabilities, destination changes, and credential lifecycle.
 - `lib/http.ts` owns HTTP authentication, Origin validation, bounded inputs, routes, and safe errors. The Next catch-all is a thin adapter; never pass Next route context as an injected Store.
@@ -73,9 +75,9 @@ worker/.venv/bin/python -m unittest discover -s examples/medicine-app -p 'test_*
 
 For processing changes, run the real worker benchmark and optional model tests described in worker/README.md. For integration changes, test real permission reads, provider boundaries, writeback, and revocation in addition to injected unit tests. For UI changes, inspect desktop/mobile layouts and keyboard/focus behavior. Documentation-only changes require source/evidence cross-checks, not unnecessary provider calls.
 
-The documented baseline is 52 Node tests, 22 worker tests with real runtime cases enabled, 14 X-ray tests, 21 medicine tests, typecheck, and build. Live provider/writeback/revocation checks and 30 real classifier executions are recorded in docs/VERIFICATION.md. Count/tests may grow; verify fresh results after changes. There is no lint script or configured CI workflow to claim as passing. A green narrow test does not prove the complete active goal.
+The documented baseline is 60 Node tests, 26 worker tests with real runtime cases enabled, 14 X-ray tests, 21 medicine tests, typecheck, and build. Live provider/writeback/revocation checks and 30 real classifier executions are recorded in docs/VERIFICATION.md. Count/tests may grow; verify fresh results after changes. There is no lint script or configured CI workflow to claim as passing. A green narrow test does not prove the complete active goal.
 
-Playwright adds 30 Chromium browser cases across desktop and mobile. Install its browser with `npx playwright install chromium`. `npm run test:browser` includes a production build; stop any production server using that build directory first, then restart afterward. The harness owns port 3140, creates a temporary synthetic vault, refuses to reuse an existing listener, and removes the vault on shutdown. Never point browser tests at the operator's vault. Integration browser APIs and document processing outputs are injected; this suite does not replace the separately recorded real worker/provider checks. Keep screenshots/traces/reports ignored.
+Playwright adds 36 Chromium browser cases across desktop and mobile. Install its browser with `npx playwright install chromium`. `npm run test:browser` includes a production build; stop any production server using that build directory first, then restart afterward. The harness owns port 3140, creates a temporary synthetic vault, refuses to reuse an existing listener, and removes the vault on shutdown. Never point browser tests at the operator's vault. Integration browser APIs and document processing outputs are injected; this suite does not replace the separately recorded real worker/provider checks. Keep screenshots/traces/reports ignored.
 
 ## Secrets, migration, and publishing
 
@@ -103,3 +105,5 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+For a profile rollout, stop the app and worker and restart both from the same revision. No schema migration or data reset is required. Do not roll back to a pre-profile gateway against this vault: it would not enforce superseded-snapshot denial. Use a consistent pre-change database/files backup or forward-fix instead. Demo app passwords are locally normalized to the patient password; retain distinct developer credentials and never commit any credential file.

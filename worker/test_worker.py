@@ -139,6 +139,82 @@ class QueueTests(unittest.TestCase):
         self.assertFalse(self.worker.once())
         self.assertIsNone(self.worker.child)
 
+    def test_profile_hints_use_claimed_snapshot_and_supplement_legacy_identifiers(self):
+        doc = self.document()
+        doc.update(profileSnapshotVersion=1, profileIdentifiers=["Unusual Fixture Name", "old@example.test"])
+        put(self.queue.db, "document", doc["id"], doc)
+        put(self.queue.db, "memory", "own", dict(patientId="patient-demo-001", category="identity", value="Legacy Fixture Name"))
+        put(self.queue.db, "patientProfile", "patient-demo-001", dict(version=2, fields=dict(name="New Fixture Name")))
+        seen = []
+        def inspect(doc, directory, staging, known):
+            seen.extend(known)
+            detector = IdentifierDetector.__new__(IdentifierDetector)
+            detector.analyzer = SimpleNamespace(analyze=lambda **kwargs: [])
+            text = "Unusual Fixture Name has cough."
+            self.assertEqual(redact_text(text, detector.spans(text, "identifiers", known)), "[REDACTED] has cough.")
+            return self.fake_outputs(doc, directory, staging, known)
+        self.worker.once(inspect)
+        self.assertEqual(seen, ["Legacy Fixture Name", "Unusual Fixture Name", "old@example.test"])
+
+    def test_profile_hints_require_snapshot_marker_and_bounded_strings(self):
+        cases = [
+            ({"profileIdentifiers": ["Untrusted Name"]}, []),
+            ({"profileSnapshotVersion": True, "profileIdentifiers": ["Untrusted Name"]}, []),
+            ({"profileSnapshotVersion": 0, "profileIdentifiers": ["Untrusted Name"]}, []),
+            ({"profileSnapshotVersion": "1", "profileIdentifiers": ["Untrusted Name"]}, []),
+            ({"profileSnapshotVersion": 1, "profileIdentifiers": "Not an array"}, []),
+            ({"profileSnapshotVersion": 1, "profileIdentifiers": [None, 1, " ", "ab", "x" * 301, " Valid Name ", "Seventh Name"]}, ["Valid Name"]),
+        ]
+        for fields, expected in cases:
+            with self.subTest(fields=fields):
+                doc = self.document()
+                doc.update(fields)
+                put(self.queue.db, "document", doc["id"], doc)
+                seen = []
+                def inspect(doc, directory, staging, known):
+                    seen.extend(known)
+                    return self.fake_outputs(doc, directory, staging, known)
+                self.worker.once(inspect)
+                self.assertEqual(seen, expected)
+
+    def test_publication_preserves_snapshot_supersession_during_processing(self):
+        for fail in [False, True]:
+            with self.subTest(fail=fail):
+                doc = self.document()
+                doc.update(profileSnapshotVersion=1, profileIdentifiers=["Old Fixture Name"])
+                put(self.queue.db, "document", doc["id"], doc)
+                def supersede(claimed, directory, staging, known):
+                    current = read(self.queue.db, "document", claimed["id"])
+                    current["superseded"] = True
+                    put(self.queue.db, "document", claimed["id"], current)
+                    if fail:
+                        raise ProcessingError("processing_failed")
+                    return self.fake_outputs(claimed, directory, staging, known)
+                self.worker.once(supersede)
+                saved = read(self.queue.db, "document", doc["id"])
+                self.assertTrue(saved["superseded"])
+                self.assertEqual(saved["profileSnapshotVersion"], 1)
+                self.assertEqual(saved["profileIdentifiers"], ["Old Fixture Name"])
+                self.assertEqual(saved["status"], "failed" if fail else "ready")
+
+    def test_expired_lease_recovery_preserves_snapshot_supersession(self):
+        doc = self.document()
+        _, token = self.queue.claim()
+        current = read(self.queue.db, "document", doc["id"])
+        current.update(profileSnapshotVersion=1, superseded=True)
+        put(self.queue.db, "document", doc["id"], current)
+        self.now += 31
+        recovered, _ = self.queue.claim()
+        self.assertTrue(recovered["superseded"])
+        self.assertFalse(self.queue.finish(doc["id"], token, error="stale"))
+        for _ in range(MAX_ATTEMPTS):
+            self.now += 31
+            self.queue.claim()
+        saved = read(self.queue.db, "document", doc["id"])
+        self.assertTrue(saved["superseded"])
+        self.assertEqual(saved["profileSnapshotVersion"], 1)
+        self.assertEqual(saved["status"], "failed")
+
     def test_overlapping_identifiers_are_redacted_once(self):
         self.assertEqual(merge_spans([(2, 5), (3, 9), (9, 10)]), [(2, 10)])
         self.assertEqual(redact_text("Alex Morgan cough", [(0, 4), (0, 11)]), "[REDACTED] cough")

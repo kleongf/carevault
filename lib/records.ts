@@ -5,6 +5,7 @@ import { ApiError } from './policy.ts';
 import { Vault } from './service.ts';
 import type { Store } from './store.ts';
 import type { Activity, Integration } from './types.ts';
+import { initialProfile, profileText, validateProfile, type PatientProfile } from './profile.ts';
 
 export type Representation = 'text' | 'redacted' | 'original';
 export type RedactionProfile = 'identifiers' | 'healthcare';
@@ -16,11 +17,12 @@ export interface DocumentRecord {
   status: 'queued' | 'processing' | 'ready' | 'failed'; createdAt: string; profile: RedactionProfile;
   size: number; author?: string; source?: { integrationId: string; receiptIds: string[] };
   dependencies: RecordDependency[]; provenance?: string; error?: string;
+  profileSnapshotVersion?: number; superseded?: boolean; profileIdentifiers?: string[];
 }
 export interface ProcessingJob { id: string; status: 'queued' | 'processing' | 'ready' | 'failed'; attempts: number; createdAt: string; }
 export interface RecordReceipt { id: string; appId: string; patientId: string; grantVersion: number; recordId: string; representation: Representation; createdAt: string; }
 export type RecordApp = Pick<Integration, 'id' | 'name' | 'publisher' | 'description' | 'appUrl' | 'capabilities' | 'icon' | 'track'> & { recordGrant: RecordGrant; legacyConnected: boolean };
-export interface RecordsDashboard { records: DocumentRecord[]; apps: RecordApp[]; activity: Activity[]; }
+export interface RecordsDashboard { records: DocumentRecord[]; apps: RecordApp[]; activity: Activity[]; patientProfile: PatientProfile; }
 export interface SharedRecord { id: string; mime: string; kind: DocumentRecord['kind']; status: DocumentRecord['status']; allowed: RecordAccess; }
 
 const patientId = 'patient-demo-001';
@@ -54,7 +56,7 @@ export class RecordVault {
     const key = `${id}:${representation}`;
     if (results.has(key)) return results.get(key)!;
     const doc = this.store.get<DocumentRecord>('document', id);
-    if (!doc || doc.patientId !== patientId || !Array.isArray(doc.dependencies) || (doc.kind === 'report' && (!doc.source || !doc.dependencies.length))) return false;
+    if (!doc || doc.patientId !== patientId || doc.superseded || (doc.profileSnapshotVersion !== undefined && this.patientProfile().snapshotId !== id) || !Array.isArray(doc.dependencies) || (doc.kind === 'report' && (!doc.source || !doc.dependencies.length))) return false;
     // Old file/report reads did not all create receipts. Their provenance cannot
     // be reconstructed safely, so reports from legacy apps remain owner-only.
     if (doc.source && !this.store.get<Integration>('integration', doc.source.integrationId)?.recordApiOnly) return false;
@@ -78,24 +80,52 @@ export class RecordVault {
     finally { if (fd !== undefined) closeSync(fd); }
   }
   private ready(doc: DocumentRecord): void { if (doc.status !== 'ready') throw new ApiError(409, 'record_not_ready'); }
-  private persist(bytes: Buffer, mime: string, title: string, profile: RedactionProfile, source?: DocumentRecord['source'], dependencies: RecordDependency[] = [], author?: string): DocumentRecord {
+  private persist(bytes: Buffer, mime: string, title: string, profile: RedactionProfile, source?: DocumentRecord['source'], dependencies: RecordDependency[] = [], author?: string, profileUpdate?: PatientProfile): DocumentRecord {
     const doc: DocumentRecord = { id: randomUUID(), patientId, title, mime, kind: source ? 'report' : mime.startsWith('image/') ? 'image' : 'document', status: 'queued', createdAt: new Date().toISOString(), size: bytes.length, profile, dependencies, ...(source ? { source, author } : {}) };
     const directory = join(this.store.directory, 'documents', doc.id);
     try {
       this.store.transaction(() => {
+        const previous = profileUpdate ? this.patientProfile() : null;
+        if (profileUpdate && previous!.version + 1 !== profileUpdate.version) throw new ApiError(409, 'profile_conflict', 'Profile changed. Reload before saving.');
         const all = this.documents();
         if (all.length >= 100 || all.reduce((total, item) => total + item.size, 0) + bytes.length > 300 * 1024 * 1024) throw new ApiError(413, 'vault_storage_limit');
         mkdirSync(directory, { recursive: true, mode: 0o700 });
         writeFileSync(this.path(doc, `input.${extensions[mime]}`), bytes, { mode: 0o600, flag: 'wx' });
         this.store.put('document', doc.id, doc);
+        if (profileUpdate) {
+          doc.profileSnapshotVersion = profileUpdate.version;
+          doc.provenance = 'Patient-reported profile snapshot. Not clinically verified.';
+          const fields = profileUpdate.fields;
+          doc.profileIdentifiers = [fields.name, fields.email, fields.phone, fields.address, fields.dateOfBirth, fields.emergencyContact].filter(Boolean);
+          this.store.put('document', doc.id, doc);
+          this.store.put('patientProfile', patientId, { ...profileUpdate, snapshotId: doc.id });
+          if (previous!.snapshotId) {
+            const prior = this.document(previous!.snapshotId);
+            this.store.put('document', prior.id, { ...prior, superseded: true });
+            for (const grant of this.store.all<RecordGrant>('recordGrant')) {
+              if (grant.records[prior.id]) {
+                delete grant.records[prior.id]; grant.version++;
+                this.store.put('recordGrant', grant.id, grant);
+              }
+            }
+          }
+        }
         this.store.put('processingJob', doc.id, { id: doc.id, status: 'queued', attempts: 0, createdAt: doc.createdAt } satisfies ProcessingJob);
-        new Vault(this.store).activity(author ?? 'You', source ? 'report' : 'upload', 'queued', source ? 'Received an integration report' : 'Uploaded a record', [doc.id]);
+        new Vault(this.store).activity(author ?? 'You', source ? 'report' : 'upload', 'queued', profileUpdate ? 'Updated patient profile; snapshot starts unshared' : source ? 'Received an integration report' : 'Uploaded a record', [doc.id]);
       });
     } catch (error) { rmSync(directory, { recursive: true, force: true }); throw error; }
     return doc;
   }
   dashboard(): RecordsDashboard {
-    return { records: this.documents().reverse(), apps: this.store.all<Integration>('integration').filter(app => app.id !== 'care-assistant' || app.grant.connected).map(app => ({ id: app.id, name: app.name, publisher: app.publisher, description: app.description, appUrl: app.appUrl, capabilities: app.capabilities, icon: app.icon, track: app.track, recordGrant: this.grant(app.id), legacyConnected: app.grant.connected })), activity: this.store.all<Activity>('activity').slice(-150).reverse() };
+    return { patientProfile: this.patientProfile(), records: this.documents().filter(doc => !doc.superseded && (doc.profileSnapshotVersion === undefined || this.patientProfile().snapshotId === doc.id)).reverse().map(({ profileIdentifiers: _identifiers, ...doc }) => doc), apps: this.store.all<Integration>('integration').filter(app => app.id !== 'care-assistant' || app.grant.connected).map(app => ({ id: app.id, name: app.name, publisher: app.publisher, description: app.description, appUrl: app.appUrl, capabilities: app.capabilities, icon: app.icon, track: app.track, recordGrant: this.grant(app.id), legacyConnected: app.grant.connected })), activity: this.store.all<Activity>('activity').slice(-150).reverse() };
+  }
+  patientProfile(): PatientProfile { return this.store.get<PatientProfile>('patientProfile', patientId) ?? initialProfile(); }
+  saveProfile(input: unknown): PatientProfile {
+    const current = this.patientProfile(), fields = validateProfile(input, current);
+    if (current.snapshotId && JSON.stringify(fields) === JSON.stringify(current.fields)) return current;
+    const next: PatientProfile = { fields, version: current.version + 1, updatedAt: new Date().toISOString(), snapshotId: null };
+    this.persist(Buffer.from(profileText(next)), 'text/plain', 'Patient profile', 'healthcare', undefined, [], undefined, next);
+    return this.patientProfile();
   }
   upload(buffer: Buffer, mime: string, title: string, profile: RedactionProfile = 'identifiers'): DocumentRecord {
     if (!Buffer.isBuffer(buffer) || !buffer.length) throw new ApiError(400, 'empty_upload');
@@ -123,7 +153,8 @@ export class RecordVault {
     if (input.allowReports && !this.supported(app, 'reports:create')) throw new ApiError(400, 'unsupported_capability');
     const records: Record<string, RecordAccess> = {};
     for (const [id, value] of Object.entries(input.records)) {
-      this.document(id);
+      const doc = this.document(id);
+      if (doc.superseded || (doc.profileSnapshotVersion !== undefined && this.patientProfile().snapshotId !== id)) throw new ApiError(409, 'profile_superseded', 'This profile has changed. Reload and select its current version.');
       if (!object(value) || Object.keys(value).length !== 3 || !['text', 'redacted', 'original'].every(key => typeof value[key] === 'boolean')) throw new ApiError(400, 'invalid_record_grant');
       const access = value as unknown as RecordAccess;
       for (const representation of ['text', 'redacted', 'original'] as const) if (access[representation] && !this.supported(app, capabilities[representation])) throw new ApiError(400, 'unsupported_capability');
